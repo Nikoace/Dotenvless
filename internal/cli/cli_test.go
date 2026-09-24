@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,5 +64,97 @@ func TestStatusReportsIdentityWithoutVault(t *testing.T) {
 	files, readErr := os.ReadDir(appdata)
 	if readErr != nil || len(files) != 0 {
 		t.Fatal("status created vault state")
+	}
+}
+
+func TestSecretCRUDCommandsAndFailures(t *testing.T) {
+	root, data := t.TempDir(), t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	t.Setenv("APPDATA", data)
+	secret := "FAKE-CLI-SECRET_日本語"
+	a := app{readSecret: func(*os.File) ([]byte, error) { return []byte(secret), nil }}
+	invoke := func(args ...string) (int, string) {
+		var out, err bytes.Buffer
+		code := a.run(args, nil, &out, &err)
+		text := out.String() + err.String()
+		if strings.Contains(text, secret) {
+			t.Fatal("CLI leaked secret")
+		}
+		return code, text
+	}
+	if code, _ := invoke("set", "TOKEN"); code != 1 {
+		t.Fatal("set without init accepted")
+	}
+	if code, _ := invoke("init"); code != 0 {
+		t.Fatal("init failed")
+	}
+	if code, _ := invoke("set", "token"); code != 0 {
+		t.Fatal("set failed")
+	}
+	if code, text := invoke("list"); code != 0 || text != "TOKEN\n" {
+		t.Fatalf("list: %d %q", code, text)
+	}
+	if code, _ := invoke("init"); code != 0 {
+		t.Fatal("repeat init failed")
+	}
+	if code, text := invoke("list"); code != 0 || text != "TOKEN\n" {
+		t.Fatal("init lost secret")
+	}
+	before, err := os.ReadFile(filepath.Join(data, "dotenvless", "vault.dat"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.readSecret = func(*os.File) ([]byte, error) { return nil, errors.New(secret) }
+	if code, text := invoke("set", "TOKEN"); code != 1 || strings.Contains(text, secret) {
+		t.Fatal("unsafe input error")
+	}
+	after, err := os.ReadFile(filepath.Join(data, "dotenvless", "vault.dat"))
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("read failure changed vault")
+	}
+	if code, _ := invoke("unset", "token"); code != 0 {
+		t.Fatal("unset failed")
+	}
+	if code, text := invoke("list"); code != 0 || text != "" {
+		t.Fatal("deleted key remains")
+	}
+	files, err := os.ReadDir(root)
+	if err != nil || len(files) != 1 {
+		t.Fatal("CLI created project files")
+	}
+}
+
+func TestSetRejectsNonTerminal(t *testing.T) {
+	root, data := t.TempDir(), t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	t.Setenv("APPDATA", data)
+	var out, err bytes.Buffer
+	if code := Run([]string{"init"}, nil, &out, &err); code != 0 {
+		t.Fatal("init failed")
+	}
+	if code := Run([]string{"set", "TOKEN"}, nil, &out, &err); code != 1 {
+		t.Fatal("nonterminal accepted")
+	}
+}
+
+func TestSecretLineEditingCancellationAndLimits(t *testing.T) {
+	for _, tc := range []struct {
+		input, want string
+		fail        bool
+	}{
+		{"token\r", "token", false}, {"\r", "", false}, {"日本\b語\r", "日語", false},
+		{"fake\x03", "", true}, {"unterminated", "", true}, {"bad\x00value\r", "", true},
+		{"\xff\r", "", true}, {strings.Repeat("x", 32769) + "\r", "", true},
+	} {
+		value, err := readSecretLine(strings.NewReader(tc.input))
+		if (err != nil) != tc.fail || (!tc.fail && string(value) != tc.want) {
+			t.Fatalf("unexpected input result; fail=%v", tc.fail)
+		}
 	}
 }

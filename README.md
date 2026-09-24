@@ -2,7 +2,7 @@
 
 Windows-first 本地 Secret 管理 CLI。将 Secret 保存在项目外的加密 Vault 中，在运行程序时注入子进程环境变量，使开发不再依赖真实 `.env` 文件。
 
-当前阶段：M3 已完成。帮助、版本与项目身份 status 可运行，以下 Secret 工作流仍是目标用法。
+当前阶段：M4 已完成。init/set/list/unset 与帮助/版本/status 可运行，run 尚待 M5。
 
 ```powershell
 dvl init
@@ -36,7 +36,8 @@ V0.1 使用 Windows DPAPI Current User scope 保护 Secret，不提供明文 `ge
 | M1 项目身份 | 完成：Git 根、子目录、worktree、联接、基础 status |
 | M2 Vault 存储 | 完成：严格校验、锁、密文原子替换；CLI 尚未接入 |
 | M3 Windows DPAPI | 完成：真实加密/绑定/篡改检查；跨账户验收待办 |
-| M4–M5 核心功能 | 未开始 |
+| M4 Secret CRUD | 完成：真实 DPAPI、隐藏输入、取消恢复、项目外存储 |
+| M5 运行器 | 未开始 |
 | M6–M8 导入、示例、状态检查 | 未开始 |
 
 运行时离线与开发工具下载是不同范围；开发工具链固定为 Go 1.27.1，位于忽略的 `.tools/go`，已核对官方 SHA-256。发布许可证尚未选定，不预设开源授权。
@@ -56,3 +57,5 @@ V0.1 使用 Windows DPAPI Current User scope 保护 Secret，不提供明文 `ge
 `bin`、工具链和构建缓存均不会进入 Git。CI 定义已添加，远程 CI 尚未触发。
 
 项目 ID 根据规范化后的物理 Git 根路径计算 SHA-256。不同 worktree 分开保存 Secret；移动或重命名仓库后需要重新导入；非 Git 目录报错。`dvl status` 当前仅展示身份，不代表 Vault 已初始化。
+
+`set` 需要交互式 Windows 终端，输入不显示字符；Enter 保存，Backspace 删除字符，Ctrl+C 取消。拒绝明文参数和重定向 stdin。变量名规范成大写，空值允许，值必须是无 NUL 的 UTF-8 文本且不超过 32 KiB。默认 Vault 位于 `%APPDATA%\dotenvless\vault.dat`；若该目录落入当前项目则拒绝操作。

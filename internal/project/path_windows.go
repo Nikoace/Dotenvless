@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func canonicalDir(path string) (string, error) {
+func CanonicalDir(path string) (string, error) {
 	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return "", err

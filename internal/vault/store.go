@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 const maxVaultBytes = 16 << 20
@@ -48,8 +49,8 @@ func NormalizeKey(key string) (string, error) {
 	return strings.ToUpper(key), nil
 }
 func ValidateValue(value []byte) error {
-	if bytes.IndexByte(value, 0) >= 0 || len(value) > MaxSecretBytes {
-		return errors.New("secret contains NUL or exceeds 32 KiB")
+	if bytes.IndexByte(value, 0) >= 0 || len(value) > MaxSecretBytes || !utf8.Valid(value) {
+		return errors.New("secret must be valid UTF-8 without NUL and at most 32 KiB")
 	}
 	return nil
 }

@@ -19,7 +19,7 @@ func Discover(start string) (Identity, error) {
 	if err != nil {
 		return Identity{}, errors.New("cannot resolve working directory")
 	}
-	root, err := canonicalDir(absolute)
+	root, err := CanonicalDir(absolute)
 	if err != nil {
 		return Identity{}, errors.New("cannot resolve working directory")
 	}

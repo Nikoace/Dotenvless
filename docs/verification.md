@@ -68,3 +68,12 @@ Refactor / 回归结果:
 - 持锁子进程直接退出、不执行 unlock，父进程随后成功 Init，验证 OS 释放锁；残留锁文件不造成阻塞。
 - go test ./...、go vet ./...、Windows build 全部通过。
 - 未验证：第二个 Windows 账户解密拒绝、Windows 10 独立机器；没有创建系统账户或声称这些验收通过。
+
+## 2026-09-24 / M4 / INIT-01、CRUD-01/02、SEC-02/03/05
+
+- Red：配置解析、init/set/list/unset 和输入编辑用例分别在失败桩上失败。
+- Green：真实 DPAPI 的 CLI CRUD、重复 init 保留键、读取失败旧 Vault 不变、仅输出键名、未初始化/非终端拒绝、项目目录不生成文件均通过。
+- 输入测试覆盖空值、Unicode 退格、Ctrl+C/EOF 取消、NUL/非法 UTF-8/过长值拒绝，不静默截断。官方 x/term v0.46.0 用于终端模式；本地读取循环控制取消与长度。
+- 使用独立 Windows PTY 实际输入 FAKE_TTY_SECRET_2468；输出未出现该值，测试确认结果正确且前后 ConsoleMode 完全相同。
+- 第二次 Windows PTY 输入测试假值后 Ctrl+C，取消成功、无返回值、前后 ConsoleMode 相同。
+- go test ./...、go vet ./... 和 Windows 构建通过；交互测试默认在无人值守测试中显式跳过，以上单独执行结果为证据。
