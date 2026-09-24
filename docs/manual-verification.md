@@ -6,23 +6,23 @@
 
 测试只产生固定假值的密文，独立于真实 Vault。无需输入真实 Secret，也不需要安装 Go 到账户 B。
 
-在 Windows 账户 A 中构建专用测试程序：
+在 Windows 账户 A 中，从本仓库根目录构建专用测试程序：
 
 ```powershell
 .\scripts\dev.ps1 test -c -o .cache/dpapi-account.test.exe ./internal/crypto
-$env:DVL_DPAPI_CHECK_FILE = Join-Path (Get-Location).Path 'dotenvless-dpapi-fixture.json'
+$env:DVL_DPAPI_CHECK_FILE = Join-Path (Get-Location).Path '.cache/dotenvless-dpapi-fixture.json'
 $env:DVL_DPAPI_CHECK_MODE = 'write'
 .\.cache\dpapi-account.test.exe '-test.run=^TestDPAPIAcrossAccounts$' '-test.v'
 $env:DVL_DPAPI_CHECK_MODE = 'read-same'
 .\.cache\dpapi-account.test.exe '-test.run=^TestDPAPIAcrossAccounts$' '-test.v'
 ```
 
-先准备一个专用测试目录，替换示例路径；write 要求目标文件尚不存在。将测试 exe 和密文 JSON 复制到账户 B 可读取的位置。可以用已有普通测试账户，不需要为此自动创建账户。
+write 要求目标文件尚不存在。将生成的测试 exe 和密文 JSON 一起复制到账户 B 可读取的专用测试目录。可以用已有普通测试账户，不需要为此自动创建账户。
 
-在实际登录的账户 B 下运行：
+实际登录账户 B，进入包含上述两个文件的目录后运行：
 
 ```powershell
-$env:DVL_DPAPI_CHECK_FILE = Join-Path (Get-Location).Path 'dotenvless-dpapi-fixture.json'
+$env:DVL_DPAPI_CHECK_FILE = (Resolve-Path './dotenvless-dpapi-fixture.json').Path
 $env:DVL_DPAPI_CHECK_MODE = 'read-other'
 .\dpapi-account.test.exe '-test.run=^TestDPAPIAcrossAccounts$' '-test.v'
 ```

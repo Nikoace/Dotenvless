@@ -157,3 +157,10 @@ Refactor / 回归结果:
 - 对提交 ab3cd34 执行本地 `git clone --no-hardlinks`，副本仅包含 Git 版本文件，没有原工作区 .tools、测试 Vault 或其他缓存。使用外部 Go 1.27.1 可执行文件和已校验的模块缓存，GOPROXY=off、CGO_ENABLED=0，构建 Windows CLI 成功，help/version 返回 0，构建后副本 Git 工作区干净。这验证源码完整性，不冒充全新机器的联网依赖安装或 GitHub CI。
 - 初次本地 clone 因源仓库 .git 属于另一 Windows 身份而失败；仅为当前进程增加源仓库及其 .git 的精确 safe.directory 后成功，未修改全局信任或文件权限。
 - 默认分支 main 使用 fast-forward 合并已通过验证的开发历史，保留全部原提交及 codex/v0.1 分支；不重写历史、不创建远程、不推送。暂不添加许可证。
+
+### GH-08：文档路径清理
+
+- README 目录示例改为相对路径；跨账户测试从仓库根目录生成假值密文，复制到第二账户后在文件所在目录解析路径。没有执行跨账户测试或访问真实 Vault。
+- 验收记录中的本机绝对路径、具体账户名和专属缓存目录改为通用描述，保留原有 Red/Green 结果、测试数量与未验证项；当前文本清理不改写旧提交。
+- 扫描 24 个受版本管理的文档与 GitHub 模板：未发现绝对 Windows 路径、用户主目录路径、UNC 路径、已知本机身份或专属缓存目录。20 个相对 Markdown 链接均有效；README 与手动验收文档中的 7 段 PowerShell 示例语法检查通过；git diff --check 通过。
+- 本轮只修改文档，没有产品行为变更，未新增 TDD 测试，也未重复 Go 测试、vet 或构建。
