@@ -130,3 +130,13 @@ Refactor / 回归结果:
 - REL-08：前后比较 37 个源文件/根文件/数据库文件记录；普通文件校验哈希，.env 与 data 文件仅校验大小/修改时间而不读取内容，全部一致。relations 的完整 Git porcelain 输出前后一致，保留该仓库原有未提交文件。status 正确列出 .env.local 为 ignored，未读取文件内容。
 - 本轮结论：Dotenvless 与 relations 的离线 Node/npm/实际应用模块集成通过。没有运行浏览器/Next dev、生产构建、真实 API 或真实凭据迁移，不据此声称这些场景通过。
 - 已知待修复：前次全量审查复现的多行引号值首行尾空白丢失，以及方括号路径 Git 状态误报仍未修复；本轮正常多行样本不包含首行尾空白。
+
+## 2026-09-24 / status 可选目录 / STATUS-DIR-01..04
+
+- SDD：先在 docs/specs/m8-status.md 定义 `status [DIRECTORY]`、项目根选择、错误码和只读要求；保持既有项目身份与配置范围。
+- Red：在未修改实现前执行 `go test -count=1 -run 'TestStatusDirectory|TestStatusHelp' -v ./internal/cli`，3 个新增测试函数失败。`.`、绝对/相对/Unicode 空格/子目录/非 Git 调用位置均被旧解析器拒绝为 exit 2；错误目标返回 2 而非期望 1；help 缺少目录语法。无参数原有行为通过。
+- Green：为 status 添加单个可选目录参数，复用 project.Discover 选择目标，不调用 chdir。上述测试全部通过；在共享的隔离 Vault 中验证当前/目标项目键名和文件隔离、查询前后 cwd/Vault 不变、值不出现在输出中。
+- 无效目录、文件、非 Git 目录返回 1；空参数、选项形式、多余参数返回 2，不回显原始参数，不创建 Vault。
+- 全量 `go test -json -count=1 ./...`：73 项测试/子测试通过，4 项既有交互/跨账户/Gradle 测试跳过。原始事件保存在忽略文件 `.cache/status-directory-tests.jsonl`。gofmt 无差异，go vet ./... 和 Windows build 通过。
+- 实际二进制：继续使用上一轮 relations 集成测试生成的假 Vault，从工具仓库通过绝对路径查询目标项目、通过相对路径查询其 src 子目录，再在目标项目中执行无参数 status；三份完整输出相同，目标项目 DPAPI 验证成功，Vault SHA-256 与 relations Git 状态不变。未访问真实 Vault 或真实 .env 内容。
+- help、README 与设计文档已同步。没有修改其他命令的目录选择；此前审查的两个独立缺陷仍未修复。本轮未重做交互、跨账户或真实外部 API 验收。

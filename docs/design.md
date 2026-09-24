@@ -28,7 +28,7 @@
 - 键名为 ASCII 环境变量名，规范为大写；空值允许，拒绝无效 UTF-8/NUL 和超过 32 KiB 的值。
 - 终端只提供隐藏交互输入；处理 Unicode 退格、Ctrl+C、长度上限，并恢复模式/清理未消费输入。重定向 stdin 明确拒绝。
 - dotenv 使用明确的语法子集，不插值或执行命令；导入后保留原文件。
-- example 排他创建，不覆盖原文件。status 只在声明的范围检查文件名；Git 失败时显示 unknown。
+- example 排他创建，不覆盖原文件。status [DIRECTORY] 选择当前或指定目录所属的 Git 项目，不切换调用者目录；只在声明的范围检查文件名，Git 失败时显示 unknown。
 
 ## SDD、TDD 与 Git
 

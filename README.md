@@ -31,8 +31,16 @@ set 需要交互式 Windows 终端，输入不会显示字符。Enter 保存，B
 | dvl import FILE | 原子导入；同名键默认使整次失败 |
 | dvl import --overwrite FILE | 明确允许覆盖，源文件始终保留 |
 | dvl example | 在 Git 根创建只含 KEY= 的 .env.example；拒绝覆盖 |
-| dvl status | 展示身份、键名、实际 Vault 验证结果及环境文件名/Git 状态 |
+| dvl status [DIRECTORY] | 查看当前或指定目录所属项目的身份、键名、Vault 与环境文件/Git 状态 |
 | dvl --help / --version | 帮助/版本，不要求 Git 项目 |
+
+status 无参数时查看当前目录所属的 Git 项目；指定目录时查看该目录所属项目，支持相对路径和项目子目录，也可从非 Git 目录调用。含空格路径用引号包裹：
+
+```powershell
+dvl status
+dvl status ..\example-project
+dvl status ..\relations\src
+```
 
 import 支持 UTF-8/BOM、CRLF、注释、export、单/双引号和多行；不执行变量展开或命令替换。源文件上限 1 MiB。[完整语法](docs/specs/m6-import.md)
 

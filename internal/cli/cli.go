@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 var Version = "0.1.0-dev"
@@ -25,7 +26,7 @@ Commands:
   example      Create a key-only .env.example at the Git root
   import [--overwrite] <FILE>  Import a dotenv file without deleting it
   unset <KEY>  Remove a secret
-  status       Inspect project, vault and environment file names
+  status [DIRECTORY]  Inspect the current or specified Git project
   run -- <COMMAND> [ARG...]  Run a child with project secrets
 
 Options:
@@ -53,6 +54,7 @@ func (a app) run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
 	}
 	valid := len(args) == 1 && (args[0] == "init" || args[0] == "list" || args[0] == "status" || args[0] == "example")
 	valid = valid || (len(args) == 2 && (args[0] == "set" || args[0] == "unset"))
+	valid = valid || (len(args) == 2 && args[0] == "status" && args[1] != "" && !strings.HasPrefix(args[1], "-"))
 	valid = valid || (len(args) >= 3 && args[0] == "run" && args[1] == "--")
 	importPath, overwrite, validImport := importArguments(args)
 	valid = valid || validImport
@@ -66,7 +68,11 @@ func (a app) run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Cannot read working directory.")
 		return 1
 	}
-	p, err := project.Discover(cwd)
+	start := cwd
+	if args[0] == "status" && len(args) == 2 {
+		start = args[1]
+	}
+	p, err := project.Discover(start)
 	if err != nil {
 		return fail(err)
 	}
