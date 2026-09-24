@@ -281,3 +281,45 @@ func TestExampleWritesOnlyNamesAtRootAndNeverOverwrites(t *testing.T) {
 		t.Fatal("example command leaked value")
 	}
 }
+
+func TestStatusVerifiesVaultAndReportsEnvironmentFiles(t *testing.T) {
+	root, data := t.TempDir(), t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	t.Setenv("APPDATA", data)
+	a := app{readSecret: func(*os.File) ([]byte, error) { return []byte("FAKE_STATUS_VALUE"), nil }}
+	var out, stderr bytes.Buffer
+	for _, args := range [][]string{{"init"}, {"set", "TOKEN"}} {
+		if code := a.run(args, nil, &out, &stderr); code != 0 {
+			t.Fatal("setup failed")
+		}
+	}
+	if err := os.WriteFile(".env.local", []byte("TOKEN=FAKE_SOURCE_VALUE"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	stderr.Reset()
+	if code := a.run([]string{"status"}, nil, &out, &stderr); code != 0 {
+		t.Fatalf("status failed: %s", stderr.String())
+	}
+	text := out.String() + stderr.String()
+	if !strings.Contains(text, "DPAPI decryption verified") || !strings.Contains(text, ".env.local") || !strings.Contains(text, "TOKEN") {
+		t.Fatal("incomplete status")
+	}
+	if strings.Contains(text, "FAKE_STATUS_VALUE") || strings.Contains(text, "FAKE_SOURCE_VALUE") {
+		t.Fatal("status leaked value")
+	}
+	if err := os.WriteFile(filepath.Join(data, "dotenvless", "vault.dat"), []byte("{"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	stderr.Reset()
+	if code := a.run([]string{"status"}, nil, &out, &stderr); code != 1 {
+		t.Fatal("corrupt vault reported success")
+	}
+	if strings.Contains(out.String(), "DPAPI decryption verified") {
+		t.Fatal("corrupt vault reported verified")
+	}
+}

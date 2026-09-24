@@ -1,8 +1,12 @@
 # Dotenvless
 
-Windows-first 本地 Secret 管理 CLI。将 Secret 保存在项目外的加密 Vault 中，在运行程序时注入子进程环境变量，使开发不再依赖真实 `.env` 文件。
+Windows-first 本地 Secret 管理 CLI。真实值保存在项目外的 DPAPI 加密 Vault 中，通过子进程环境变量供应用使用。
 
-当前阶段：M0–M5 核心路径已实现并通过本机验收；跨 Windows 用户测试仍待独立环境验证。
+M0–M8 功能已实现，当前版本为 0.1.0-dev。跨 Windows 账户、独立 Windows 10/11 与远程 CI 验收仍有待办，见[验证记录](docs/verification.md)和[独立环境验收](docs/manual-verification.md)。
+
+## 使用
+
+在 Git 项目中运行：
 
 ```powershell
 dvl init
@@ -10,60 +14,77 @@ dvl set OPENAI_API_KEY
 dvl set DATABASE_URL
 dvl list
 dvl run -- python app.py
+dvl run -- uv run main.py
+dvl run -- npm run dev
+dvl run -- ./gradlew bootRun
 ```
 
-## 工作方式
+set 需要交互式 Windows 终端，输入不会显示字符。Enter 保存，Backspace 删除字符，Ctrl+C 取消并恢复终端。变量名规范成大写；允许空值，值必须是无 NUL 的 UTF-8 文本且至多 32 KiB。不接受 Secret 位置参数或重定向 stdin。
 
-采用 SDD（Specification-Driven Development，规格驱动开发）与 TDD：先定义可验证的行为，再运行失败测试，写最小实现，最后重构和回归。每个里程碑保持可编译，更新文档，并提交 Git。设计歧义先讨论，再实现相关行为。
+| 命令 | 行为 |
+| --- | --- |
+| dvl init | 幂等注册当前项目 |
+| dvl set KEY | 隐藏输入并保存/覆盖该键 |
+| dvl list | 仅输出排序键名 |
+| dvl unset KEY | 删除该键，不存在时报错 |
+| dvl run -- COMMAND [ARG...] | 注入当前项目 Secret，继承工作目录/标准流，透传退出码 |
+| dvl import FILE | 原子导入；同名键默认使整次失败 |
+| dvl import --overwrite FILE | 明确允许覆盖，源文件始终保留 |
+| dvl example | 在 Git 根创建只含 KEY= 的 .env.example；拒绝覆盖 |
+| dvl status | 展示身份、键名、实际 Vault 验证结果及环境文件名/Git 状态 |
+| dvl --help / --version | 帮助/版本，不要求 Git 项目 |
 
-- [V0.1 规格与验收条件](docs/specs/v0.1.md)
-- [设计决策与待讨论事项](docs/design.md)
-- [里程碑和测试计划](docs/plan.md)
-- [验证记录](docs/verification.md)
+import 支持 UTF-8/BOM、CRLF、注释、export、单/双引号和多行；不执行变量展开或命令替换。源文件上限 1 MiB。[完整语法](docs/specs/m6-import.md)
+
+run 对普通程序直接传参，自动识别 .cmd/.bat；./gradlew 优先使用相邻 gradlew.bat。批处理的引号、%、!、^、&、|、<、>、控制字符和末尾反斜杠参数会被明确拒绝；需要此类语法时显式选择 shell。普通程序不受这一批处理限制。[参数契约](docs/specs/m5-run.md)
+
+## 存储与项目身份
+
+默认位置为 %APPDATA%\dotenvless\vault.dat。Vault 必须位于当前项目之外；测试使用隔离路径，不触碰真实 Vault。每个 Secret 由 Windows DPAPI Current User scope 加密，项目 ID 与键名绑定到记录。文件修改使用跨进程锁与密文原子替换；损坏或未知格式不会被自动重置。
+
+项目 ID 为规范化物理 Git 根路径的 SHA-256。子目录与目录联接识别为同一项目；不同 worktree、同名不同路径仓库隔离。移动或重命名目录后需要重新导入；非 Git 目录报错。
 
 ## 安全范围
 
-V0.1 使用 Windows DPAPI Current User scope 保护 Secret，不提供明文 `get` 命令。Dotenvless 自身不联网、不上传日志、不启动 daemon，不把 Secret 写入项目文件或持久环境变量。
+Dotenvless 自身没有网络访问、遥测、云账户、更新检查或 daemon，不写入持久环境变量，不生成临时明文 .env。list/status/example 和自身错误信息不显示 Secret value；V0.1 没有 get 命令。
 
-这是本地存储保护工具。同一 Windows 身份运行的程序可能调用 DPAPI 解密；获得注入环境的子进程及其后代也可能读取或输出 Secret。V0.1 不提供 Agent 隔离，也不拦截目标应用的网络或输出。依据：[Microsoft DPAPI 文档](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata)。
+Secret 会存在于 dvl 和目标进程内存及目标环境中。目标应用及其后代可以主动输出或传递 Secret，输出会原样传回。DPAPI 不隔离同一 Windows 身份下的其他程序，V0.1 不提供 Agent sandbox。依据：[Microsoft DPAPI](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata)。
 
-## 当前状态
+status 检查 .env / .env.* 文件名，不读取其内容；模板、Git/依赖/构建/缓存目录和目录链接被排除，命令会显示范围。Git 状态区分 tracked / ignored / not ignored / unknown；发现环境文件属于提示，损坏 Vault 或扫描失败返回非零。[检查范围](docs/specs/m8-status.md)
 
-| 阶段 | 状态 |
-| --- | --- |
-| 规格、测试计划 | 基线已建立；D-01/D-02/D-03 已确认 |
-| M0 项目初始化 | 完成：帮助/版本、测试、Windows CI 定义 |
-| M1 项目身份 | 完成：Git 根、子目录、worktree、联接、基础 status |
-| M2 Vault 存储 | 完成：严格校验、锁、密文原子替换；已连接生产 CLI |
-| M3 Windows DPAPI | 完成：真实加密/绑定/篡改检查；跨账户验收待办 |
-| M4 Secret CRUD | 完成：真实 DPAPI、隐藏输入、取消恢复、项目外存储 |
-| M5 运行器 | 完成：环境注入、退出码、脚本和真实工具验收 |
-| M6 dotenv 导入 | 完成：明确语法、事务提交、显式覆盖、源文件保留 |
-| M7 .env.example | 完成：根目录、空值、排序、拒绝覆盖 |
-| M8 状态检查 | 未开始 |
+APPDATA 可能由系统重定向或漫游；工具自身离线并不改变系统对该目录的同步设置。
 
-运行时离线与开发工具下载是不同范围；开发工具链固定为 Go 1.27.1，位于忽略的 `.tools/go`，已核对官方 SHA-256。发布许可证尚未选定，不预设开源授权。
+## 构建与测试
 
-## 开发
+目标平台：Windows 10/11。开发使用 Go 1.27.1。运行生成的 dvl.exe 不需要 Go 或额外运行时。
 
-已安装 Go 时直接使用 `go test ./...`。当前工作区也可使用隔离的工具链：
+```powershell
+go test ./...
+go vet ./...
+go build -trimpath -o bin/dvl.exe ./cmd/dvl
+.\bin\dvl.exe --help
+```
+
+本工作区已下载并校验官方 Go ZIP，工具链位于忽略的 .tools/go；隔离缓存包装脚本也可使用：
 
 ```powershell
 .\scripts\dev.ps1 test ./...
 .\scripts\dev.ps1 vet ./...
-.\scripts\dev.ps1 build -trimpath -o bin/dvl.exe ./cmd/dvl
-.\bin\dvl.exe --help
-.\bin\dvl.exe --version
+.\scripts\dev.ps1 build -buildvcs=false -trimpath -o bin/dvl.exe ./cmd/dvl
 ```
 
-`bin`、工具链和构建缓存均不会进入 Git。CI 定义已添加，远程 CI 尚未触发。
+本任务的 Git 目录由沙箱身份创建。如本机 Git 报 dubious ownership，可仅对该次命令使用 `git -c safe.directory="$(Get-Location)" status`。上面的 -buildvcs=false 可避开构建时读取 Git 状态；没有更改全局 Git 信任设置。
 
-项目 ID 根据规范化后的物理 Git 根路径计算 SHA-256。不同 worktree 分开保存 Secret；移动或重命名仓库后需要重新导入；非 Git 目录报错。`dvl status` 当前仅展示身份，不代表 Vault 已初始化。
+已实际验证：真实 DPAPI、跨进程写入与退出释放锁、隐藏输入/取消、Ctrl+C、完整 CLI→Python 流程，以及 Python/Node/PowerShell/CMD/npm/Gradle 的环境注入。交互和跨账户测试在默认测试中显式跳过，需要专门运行；真实 Gradle 测试通过 DVL_TEST_GRADLE 指向本机发行版，使用独立缓存、离线与 --no-daemon。
 
-`set` 需要交互式 Windows 终端，输入不显示字符；Enter 保存，Backspace 删除字符，Ctrl+C 取消。拒绝明文参数和重定向 stdin。变量名规范成大写，空值允许，值必须是无 NUL 的 UTF-8 文本且不超过 32 KiB。默认 Vault 位于 `%APPDATA%\dotenvless\vault.dat`；若该目录落入当前项目则拒绝操作。
+## 开发流程
 
-run 继承当前工作目录与标准流，只为子进程构造环境。自动支持 npm 的 .cmd 与 Gradle 的 .bat；./gradlew 会优先解析相邻的 gradlew.bat。批处理参数中不可靠的 shell 特殊字符会明确报错，详见 docs/specs/m5-run.md；普通程序直接传参。目标应用可主动输出或传递 Secret，dvl 不过滤其输出。
+采用 SDD（规格驱动）与 TDD：规格/验收 ID → 真实失败测试 → 最小实现 → 回归与重构 → 文档更新 → Git 提交。关键设计先讨论，按 M0–M8 顺序推进。
 
-导入：dvl import .env；同名键默认使整次导入失败，dvl import --overwrite .env 才覆盖。支持 UTF-8/BOM、CRLF、注释、export、引号和多行；不会展开变量或执行命令。源文件始终保留，语法边界见 docs/specs/m6-import.md。
+- [V0.1 规格](docs/specs/v0.1.md)
+- [设计决策](docs/design.md)
+- [里程碑与测试计划](docs/plan.md)
+- [执行证据](docs/verification.md)
+- [独立环境验收](docs/manual-verification.md)
 
-运行 dvl example 在 Git 根创建只含 KEY= 的 .env.example；已有文件不会被覆盖。
+云同步、团队分享、Web UI、Secret 内容扫描、Linux/macOS 与 Agent 权限隔离均未加入 V0.1。许可证尚未指定，不预设开源授权。

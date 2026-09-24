@@ -25,7 +25,7 @@ Commands:
   example      Create a key-only .env.example at the Git root
   import [--overwrite] <FILE>  Import a dotenv file without deleting it
   unset <KEY>  Remove a secret
-  status       Show Git project identity
+  status       Inspect project, vault and environment file names
   run -- <COMMAND> [ARG...]  Run a child with project secrets
 
 Options:
@@ -71,8 +71,7 @@ func (a app) run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
 		return fail(err)
 	}
 	if args[0] == "status" {
-		fmt.Fprintf(stdout, "Project: %s\nRoot: %s\nID: %s\n", p.Name, p.Root, p.ID)
-		return 0
+		return printStatus(p, stdout, stderr)
 	}
 	path, err := config.VaultPath(p.Root)
 	if err != nil {

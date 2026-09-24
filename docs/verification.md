@@ -104,3 +104,15 @@ Refactor / 回归结果:
 - Green：从项目子目录运行，根目录生成排序 KEY=，无假 Secret 值；重复执行返回错误，已有文件逐字节保持。
 - 使用 O_EXCL 排他创建，不跟随已有路径覆盖文件；未实现强制覆盖。
 - go test ./...、go vet ./...、Windows build 全部通过。
+
+## 2026-09-24 / M8 / STATUS-01 与最终回归
+
+- Red：工作区检查失败桩使实际 Git/目录联接测试失败；CLI status 缺少 Vault/环境文件报告而失败。
+- Green：实际 DPAPI 校验、损坏 Vault 返回错误、输出无值、未初始化不创建 Vault；嵌套环境文件、模板/缓存排除、目录联接不越界均通过。
+- 真实临时 Git 仓库验证 ignored、强制加入索引后的 tracked、去掉忽略规则后的 not ignored；无效 Git 显示 unknown。
+- 最终强制回归：go test -json -count=1 ./...，58 项测试/子测试通过。
+- 默认跳过 4 项：TestDPAPIAcrossAccounts、TestInteractiveCtrlC、TestInteractiveHiddenInput、TestInstalledGradle。其中交互输入、Ctrl+C、真实 Gradle 已在本次任务单独执行并记录；跨账户仅 write/read-same 基线通过，read-other 未执行。
+- 跨账户专用程序已编译到 .cache/dpapi-account.test.exe；第二身份沙箱再次尝试仍因 helper setup refresh 错误无法启动，没有把启动失败记作 DPAPI 拒绝。
+- gofmt 检查无差异，go vet ./... 与 Windows 构建通过；实际二进制 help/status 正常。
+- 本机系统版本：Windows NT 10.0.26200.0。未声称已测试独立 Windows 10/11、UNC 或远程 CI。
+- 所有测试仅使用假值；工具链/缓存/编译结果未加入 Git。实际项目根 status 显示 Vault 尚未初始化，没有创建开发者真实 Vault。
