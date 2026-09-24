@@ -151,3 +151,9 @@ Refactor / 回归结果:
 - Windows CI 使用官方 Actions 当前 v7 的固定提交 SHA（通过官方仓库 git ls-remote 核对），Go 版本从 go.mod 获取；包含依赖下载/校验、格式、vet、测试、构建和 help/version 冒烟，产物上传仅包含 bin/dvl.exe。参考 [setup-go](https://github.com/actions/setup-go)、[checkout](https://github.com/actions/checkout)、[upload-artifact](https://github.com/actions/upload-artifact)。当前没有远程 CI 运行结果。
 - 完整本地回归：Windows x64、CGO_ENABLED=0，79 项测试/子测试通过，4 项既有可选验收跳过；go mod verify、go vet、gofmt、Windows build 与二进制 help/version 通过。本轮未重做交互/第二账户/独立系统验收。
 - 检查当时 61 个历史文件路径、112 个可达历史 blob：没有工具链、构建/缓存产物、Vault 或真实环境文件路径；常见 GitHub/AWS/OpenAI token 及私钥格式匹配为 0。该模式检查不是不存在任何秘密的证明。候选文件的 YAML/Markdown 本地链接与忽略规则检查通过。脚本与汇总仅保存在忽略的 .cache 中。
+
+### GH-07：干净克隆与默认分支
+
+- 对提交 ab3cd34 执行本地 `git clone --no-hardlinks`，副本仅包含 Git 版本文件，没有原工作区 .tools、测试 Vault 或其他缓存。使用外部 Go 1.27.1 可执行文件和已校验的模块缓存，GOPROXY=off、CGO_ENABLED=0，构建 Windows CLI 成功，help/version 返回 0，构建后副本 Git 工作区干净。这验证源码完整性，不冒充全新机器的联网依赖安装或 GitHub CI。
+- 初次本地 clone 因源仓库 .git 属于另一 Windows 身份而失败；仅为当前进程增加源仓库及其 .git 的精确 safe.directory 后成功，未修改全局信任或文件权限。
+- 默认分支 main 使用 fast-forward 合并已通过验证的开发历史，保留全部原提交及 codex/v0.1 分支；不重写历史、不创建远程、不推送。暂不添加许可证。
