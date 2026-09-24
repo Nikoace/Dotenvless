@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -34,12 +35,12 @@ func Parse(reader io.Reader) (values map[string][]byte, err error) {
 	}()
 	for index := 0; index < len(lines); index++ {
 		number := index + 1
-		line := strings.TrimSpace(lines[index])
+		line := strings.TrimLeftFunc(lines[index], unicode.IsSpace)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 		if strings.HasPrefix(line, "export ") || strings.HasPrefix(line, "export\t") {
-			line = strings.TrimSpace(line[6:])
+			line = strings.TrimLeftFunc(line[6:], unicode.IsSpace)
 		}
 		equals := strings.IndexByte(line, '=')
 		if equals < 1 {

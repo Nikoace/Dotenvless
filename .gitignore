@@ -5,6 +5,7 @@
 !.env.*.example
 vault.dat
 vault.dat.*
+.vault-*
 
 # Build, local tools, test artifacts
 /bin/
@@ -13,7 +14,8 @@ vault.dat.*
 /.cache/
 /coverage.out
 /coverage.html
-*.test.exe
+*.exe
+*.test
 
 # Editors
 .idea/

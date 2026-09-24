@@ -83,14 +83,15 @@ func gitExit(root string, args ...string) int {
 	return -1
 }
 func gitState(root, path string) string {
-	switch gitExit(root, "ls-files", "--error-unmatch", "--", path) {
+	switch gitExit(root, "--literal-pathspecs", "ls-files", "--error-unmatch", "--", path) {
 	case 0:
 		return "tracked"
 	case 1:
 	default:
 		return "unknown"
 	}
-	switch gitExit(root, "check-ignore", "--quiet", "--", path) {
+	// Tracking was already checked literally; avoid matching index entries again.
+	switch gitExit(root, "check-ignore", "--no-index", "--quiet", "--", path) {
 	case 0:
 		return "ignored"
 	case 1:

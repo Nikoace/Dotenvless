@@ -140,3 +140,14 @@ Refactor / 回归结果:
 - 全量 `go test -json -count=1 ./...`：73 项测试/子测试通过，4 项既有交互/跨账户/Gradle 测试跳过。原始事件保存在忽略文件 `.cache/status-directory-tests.jsonl`。gofmt 无差异，go vet ./... 和 Windows build 通过。
 - 实际二进制：继续使用上一轮 relations 集成测试生成的假 Vault，从工具仓库通过绝对路径查询目标项目、通过相对路径查询其 src 子目录，再在目标项目中执行无参数 status；三份完整输出相同，目标项目 DPAPI 验证成功，Vault SHA-256 与 relations Git 状态不变。未访问真实 Vault 或真实 .env 内容。
 - help、README 与设计文档已同步。没有修改其他命令的目录选择；此前审查的两个独立缺陷仍未修复。本轮未重做交互、跨账户或真实外部 API 验收。
+
+## 2026-09-24 / GitHub 提交准备 / GH-01..06
+
+- 用户选择暂不添加许可证。先在 docs/specs/github-preparation.md 定义验收；本轮不创建远程仓库、不推送、不发布 Release。
+- Red：新增多行引号值首行空白回归测试，单/双引号、export、CRLF 四例全部失败；Git 字面量路径测试把未跟踪/已忽略的 .env.[dev] 误报为 tracked。
+- Green：解析器只清理行首语法空白，保留引号内行尾空白。Git ls-files 使用 --literal-pathspecs；真实回归进一步发现 check-ignore 默认索引匹配同样受方括号影响，将同一 literal 选项加到 check-ignore 会被 Git 拒绝。最终在已经精确确认未跟踪后使用 check-ignore --no-index，三种 Git 状态均通过。参考 [Git check-ignore](https://git-scm.com/docs/git-check-ignore)。
+- 上述两项已修复，替代此前记录中的“仍未修复”状态；未加引号值的既有空白清理行为保持。
+- README 改为通用安装/构建/使用说明，补充 CONTRIBUTING、SECURITY、CHANGELOG、首次推送指南、Issue/PR 模板和 editorconfig。历史验收记录保留，不改写旧提交；新用户无需本机路径和缓存。
+- Windows CI 使用官方 Actions 当前 v7 的固定提交 SHA（通过官方仓库 git ls-remote 核对），Go 版本从 go.mod 获取；包含依赖下载/校验、格式、vet、测试、构建和 help/version 冒烟，产物上传仅包含 bin/dvl.exe。参考 [setup-go](https://github.com/actions/setup-go)、[checkout](https://github.com/actions/checkout)、[upload-artifact](https://github.com/actions/upload-artifact)。当前没有远程 CI 运行结果。
+- 完整本地回归：Windows x64、CGO_ENABLED=0，79 项测试/子测试通过，4 项既有可选验收跳过；go mod verify、go vet、gofmt、Windows build 与二进制 help/version 通过。本轮未重做交互/第二账户/独立系统验收。
+- 检查当时 61 个历史文件路径、112 个可达历史 blob：没有工具链、构建/缓存产物、Vault 或真实环境文件路径；常见 GitHub/AWS/OpenAI token 及私钥格式匹配为 0。该模式检查不是不存在任何秘密的证明。候选文件的 YAML/Markdown 本地链接与忽略规则检查通过。脚本与汇总仅保存在忽略的 .cache 中。

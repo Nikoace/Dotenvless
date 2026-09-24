@@ -1,22 +1,64 @@
-name: Windows
-on: [push, pull_request]
+name: Windows CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Windows x64
     runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.27.1'
-          cache: false
-      - name: Check formatting
+    timeout-minutes: 15
+    defaults:
+      run:
         shell: pwsh
+    env:
+      GOOS: windows
+      GOARCH: amd64
+      CGO_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Check formatting
         run: |
           $files = git ls-files '*.go'
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot list Go files' }
           $unformatted = gofmt -l $files
+          if ($LASTEXITCODE -ne 0) { throw 'gofmt failed' }
           if ($unformatted) { throw "Unformatted Go files: $unformatted" }
-      - run: go vet ./...
-      - run: go test -count=1 ./...
-      - run: go build -trimpath -o bin/dvl.exe ./cmd/dvl
+      - name: Download dependencies
+        run: go mod download
+      - name: Verify dependencies
+        run: go mod verify
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test -count=1 ./...
+      - name: Build
+        run: go build -trimpath -o bin/dvl.exe ./cmd/dvl
+      - name: Smoke test executable
+        run: |
+          .\bin\dvl.exe --version
+          if ($LASTEXITCODE -ne 0) { throw 'Version command failed' }
+          .\bin\dvl.exe --help
+          if ($LASTEXITCODE -ne 0) { throw 'Help command failed' }
+      - name: Upload executable
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: dvl-windows-amd64
+          path: bin/dvl.exe
+          if-no-files-found: error
+          retention-days: 14

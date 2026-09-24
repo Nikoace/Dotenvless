@@ -1,0 +1,27 @@
+name: 问题报告
+description: 使用假值描述可复现的 CLI 问题
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "请勿提交真实 Secret、Vault、.env 内容或完整环境变量。安全漏洞请参阅 SECURITY.md。"
+  - type: input
+    id: version
+    attributes:
+      label: Dotenvless 与 Windows 版本
+      description: 提供 dvl --version 和 Windows 版本。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 使用新建临时 Git 项目和假值，列出命令与退出码。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期结果与实际结果
+    validations:
+      required: true

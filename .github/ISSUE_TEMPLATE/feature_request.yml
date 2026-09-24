@@ -1,0 +1,17 @@
+name: 功能建议
+description: 说明实际场景、期望行为和边界
+title: "[Feature] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 使用场景与当前限制
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 期望行为
+      description: 可包含命令示例、错误行为及替代方案；仅使用假值。
+    validations:
+      required: true

@@ -78,3 +78,30 @@ func TestDirectoryLinksAreNotFollowed(t *testing.T) {
 		t.Fatal("followed outside directory link")
 	}
 }
+
+func TestGitStatesUseLiteralFileNames(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "--quiet")
+	for _, name := range []string{".env.[dev]", ".env.d"} {
+		write(t, root, name, "FAKE_LITERAL_FILE")
+	}
+	git(t, root, "add", "--", ".env.d")
+	check := func(want string) {
+		t.Helper()
+		report, err := Check(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if report.Git[".env.[dev]"] != want {
+			t.Errorf("literal file status=%s, want=%s", report.Git[".env.[dev]"], want)
+		}
+		if report.Git[".env.d"] != "tracked" {
+			t.Error("tracked sibling changed state")
+		}
+	}
+	check("not ignored")
+	write(t, root, ".gitignore", ".env.*\n")
+	check("ignored")
+	git(t, root, "--literal-pathspecs", "add", "--force", "--", ".env.[dev]")
+	check("tracked")
+}

@@ -37,3 +37,26 @@ func TestParseRejectsMalformedWithoutValueLeak(t *testing.T) {
 		t.Fatal("oversized source accepted")
 	}
 }
+
+func TestMultilineQuotedValuesPreserveFirstLineWhitespace(t *testing.T) {
+	for _, tc := range []struct{ name, input string }{
+		{"single", "TOKEN='FAKE  \t\nNEXT'\n"},
+		{"double", "TOKEN=\"FAKE  \t\nNEXT\"\n"},
+		{"export-single", " export TOKEN='FAKE  \t\nNEXT'\n"},
+		{"export-double-crlf", "export\tTOKEN=\"FAKE  \t\r\nNEXT\"\r\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			values, err := Parse(strings.NewReader(tc.input))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(values["TOKEN"]) != "FAKE  \t\nNEXT" {
+				t.Fatal("quoted value lost whitespace")
+			}
+		})
+	}
+	values, err := Parse(strings.NewReader(" \t\n export PLAIN = value \t\n"))
+	if err != nil || string(values["PLAIN"]) != "value" {
+		t.Fatal("unquoted whitespace handling changed")
+	}
+}
