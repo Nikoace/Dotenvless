@@ -21,7 +21,7 @@
 
 ## 已落地的实现决策
 
-- 本地模块名 dotenvless；开发工具链 Go 1.27.1；只依赖固定版本的 Go 官方 x/sys、x/term。远程仓库尚未指定；用户确认首次 GitHub 提交暂不添加许可证。
+- 本地模块名 dotenvless；开发工具链 Go 1.27.1；只依赖固定版本的 Go 官方 x/sys、x/term。公开仓库为 [Nikoace/Dotenvless](https://github.com/Nikoace/Dotenvless)；用户确认首次 GitHub 提交暂不添加许可证。
 - Windows 文件句柄解析真实目录，再规范化路径并哈希；保留实际目录名大小写。测试发现仅 EvalSymlinks 不足后作出该修正。
 - Vault 默认 APPDATA/dotenvless/vault.dat；没有实际配置需求，未生成空 config.json。拒绝当前项目内的存储路径。
 - Vault 版本化 JSON、DPAPI 密文、上下文绑定；Windows OS 锁覆盖读—改—写，密文临时文件同步后原子替换。
@@ -44,5 +44,5 @@ DPAPI 默认通常关联同用户凭据和机器；本项目不使用 CRYPTPROTE
 
 - 首次开发的本机 Git 所有权和执行环境限制记录在 docs/verification.md，不作为新克隆用户的安装要求。
 - 跨账户验收工具已准备，写入与同账户读取已验证；不同 SID 读取后的 DPAPI 拒绝仍未运行。
-- 独立 Windows 10/11、UNC/特殊文件系统和远程 CI 尚未完成现场验证。
+- 独立 Windows 10/11 与 UNC/特殊文件系统尚未完成现场验证；远程 CI 状态以仓库 Actions 记录为准。
 - 不因这些待办而声称已经完成全部发布验收；当前仍为 0.1.0-dev。

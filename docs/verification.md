@@ -172,3 +172,12 @@ Refactor / 回归结果:
 - 使用 git-filter-repo 2.47.0 对两条本地分支进行精确文本替换，保留原有 15 个提交。逐提交比较非 Markdown 文件的 Git 对象 ID：全部一致；清理前后最新完整文件树一致。旧提交 SHA 已改变，历史测试结果仍对应原执行事实。
 - 扫描清理后 136 个可达 blob，其中 63 个为文档或配置版本：未发现本机路径、历史账户说明、专属缓存目录或运行时产物，常见凭据模式匹配为 0。初次扫描命中的单元测试目录名为临时生成的通用占位目录，核实后保留测试代码；模式扫描不构成不存在任何秘密的证明。
 - 本轮没有产品行为变化，没有重做 TDD、Go 测试或构建；公开推送后的 Windows CI 以仓库 Actions 的实际结果为准。
+
+### GH-10：首次 CI 路径别名修复
+
+- 公开 main 的首次 [Windows CI](https://github.com/Nikoace/Dotenvless/actions/runs/35979927750) 在配置测试中报 unexpected vault path；格式、依赖校验和 vet 已通过。失败来自测试直接比较路径文本，而 VaultPath 返回规范化物理路径。
+- SDD：先增加 GH-10，要求配置路径与子进程工作目录按物理目录身份验收，不改变产品实现。
+- Red：将 TEMP/TMP 指向隔离目录的大小写别名，运行 `go test -count=1 -run '^TestVaultPathOutsideProjectWithoutWriting$' -v ./internal/config`，复现同一断言失败。
+- 首次扩大全量复现时，临时目录设在仓库内部，使非 Git 测试继承了仓库祖先；这是测试环境选择错误。改为系统临时区内的独立目录后，单独运行 `go test -count=1 -run '^TestBatchArgumentsAndGradleWrapperResolution$' -v ./internal/runner`，仍复现测试辅助进程退出 92，定位为 cwd 字符串比较同样不接受路径别名。
+- Green：两个测试改用 os.Stat/os.SameFile 验证目录身份，保留固定文件名、无写入、环境变量、参数、流及退出码断言。相同别名条件下，配置和批处理针对性测试均通过。
+- 完整回归：仓库外的隔离路径别名环境下，`go test -count=1 -json ./...` 得到 79 项通过、4 项既有可选验收跳过、0 失败；gofmt、go vet、Windows 构建和二进制版本冒烟通过。此次修改只涉及测试与文档，产品实现保持不变。

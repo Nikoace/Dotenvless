@@ -14,10 +14,24 @@ func TestVaultPathOutsideProjectWithoutWriting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if path != filepath.Join(appdata, "dotenvless", "vault.dat") {
-		t.Fatal("unexpected vault path")
+	if filepath.Base(path) != "vault.dat" || filepath.Base(filepath.Dir(path)) != "dotenvless" {
+		t.Fatal("unexpected vault path suffix")
 	}
-	files, _ := os.ReadDir(appdata)
+	actualBase, err := os.Stat(filepath.Dir(filepath.Dir(path)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	appdataInfo, err := os.Stat(appdata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(actualBase, appdataInfo) {
+		t.Fatal("vault path resolves outside APPDATA")
+	}
+	files, err := os.ReadDir(appdata)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(files) != 0 {
 		t.Fatal("configuration wrote files")
 	}

@@ -119,7 +119,9 @@ func TestRunnerHelper(t *testing.T) {
 		os.Exit(91)
 	}
 	cwd, _ := os.Getwd()
-	if cwd != os.Getenv("DVL_EXPECT_CWD") || os.Getenv("DVL_TOKEN") != "FAKE-CHILD-SECRET" || os.Getenv("DVL_PARENT") != "inherited" {
+	actualDir, actualErr := os.Stat(cwd)
+	expectedDir, expectedErr := os.Stat(os.Getenv("DVL_EXPECT_CWD"))
+	if actualErr != nil || expectedErr != nil || !os.SameFile(actualDir, expectedDir) || os.Getenv("DVL_TOKEN") != "FAKE-CHILD-SECRET" || os.Getenv("DVL_PARENT") != "inherited" {
 		os.Exit(92)
 	}
 	input, err := io.ReadAll(os.Stdin)

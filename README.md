@@ -2,7 +2,7 @@
 
 Windows-first 本地 Secret 管理 CLI。把项目 Secret 存入项目目录之外的 Windows DPAPI 加密 Vault，在启动程序时通过环境变量注入。
 
-当前版本：**0.1.0-dev**。支持 Windows 10/11，当前自动测试与构建目标为 Windows x64。尚未完成的独立系统、跨账户和远程 CI 验收见[验证记录](docs/verification.md)。
+当前版本：**0.1.0-dev**。支持 Windows 10/11，当前自动测试与构建目标为 Windows x64。尚未完成的独立系统和跨账户验收见[验证记录](docs/verification.md)，远程 CI 状态见 [GitHub Actions](https://github.com/Nikoace/Dotenvless/actions)。
 
 ## 构建
 
