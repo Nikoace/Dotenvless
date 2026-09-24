@@ -1,0 +1,22 @@
+name: Windows
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Check formatting
+        shell: pwsh
+        run: |
+          $files = git ls-files '*.go'
+          $unformatted = gofmt -l $files
+          if ($unformatted) { throw "Unformatted Go files: $unformatted" }
+      - run: go vet ./...
+      - run: go test -count=1 ./...
+      - run: go build -trimpath -o bin/dvl.exe ./cmd/dvl

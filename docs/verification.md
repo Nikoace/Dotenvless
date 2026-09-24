@@ -30,3 +30,14 @@ Refactor / 回归结果:
 未验证项和原因:
 对应 Git 提交:
 ```
+
+## 2026-09-24 / M0 / CLI-01、SEC-03
+
+- 工具链：Go 1.27.1 windows/amd64；官方 ZIP SHA-256 `a3911b5e0e1b1053f25ed0675f4c1c6aad1e2bfcf253df2b9be4caabd2edd95d` 已匹配。
+- Red：`scripts/dev.ps1 test ./...`，帮助/短帮助/版本得到 exit 1；无效参数得到 exit 1 而期望 2，测试失败。
+- Green：添加最小 CLI 实现后，相同命令全部通过。
+- 修正：PowerShell 高级参数绑定会吞掉 Go 的 `-o`，改为原始参数转发，实际构建复测通过。
+- 回归：`go vet ./...`、`go test ./...`、`go build -trimpath -o bin/dvl.exe ./cmd/dvl` 均成功。
+- 冒烟：二进制 `--help` 输出用法，`--version` 输出 `dvl 0.1.0-dev`，均返回 0。
+- Windows CI 文件已建立，但没有远程运行结果。
+- 环境限制：沙箱创建的 `.git` 属于另一 Windows 身份；尝试调整该目录所有者被 OS 拒绝，未改变权限。开发命令使用进程级 `safe.directory` 精确信任本仓库根目录，未修改全局 Git 配置。普通沙箱启动仍异常。
