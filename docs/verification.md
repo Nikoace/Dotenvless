@@ -58,3 +58,13 @@ Refactor / 回归结果:
 - 12 个并发更新无丢失；本里程碑是多 goroutine，跨进程证据留待真实 DPAPI 集成。
 - 故障注入验证临时密文文件清理。测试 Protector 仅存在于 *_test.go，磁盘没有测试假 Secret 明文。
 - go test ./...、go vet ./...、Windows build 全部通过；生产 CLI 仍只提供帮助、版本、身份 status。
+
+## 2026-09-24 / M3 / SEC-01/04、DPAPI 与进程并发
+
+- Red：真实 DPAPI 往返/随机性及持久化测试在失败桩上失败。
+- 第一轮实现揭示 Windows DPAPI 对零长度输入失败；使用受保护的载荷版本字节支持空值，再次测试通过。
+- Green：真实 Windows DPAPI 空值、Unicode、多行往返，篡改/错误上下文/非法密文拒绝，重复加密不同密文均通过。
+- 真实 Vault 重开成功；6 个独立进程更新同一 Vault，最终 7 个键全部保留；磁盘没有测试假 Secret 明文。
+- 持锁子进程直接退出、不执行 unlock，父进程随后成功 Init，验证 OS 释放锁；残留锁文件不造成阻塞。
+- go test ./...、go vet ./...、Windows build 全部通过。
+- 未验证：第二个 Windows 账户解密拒绝、Windows 10 独立机器；没有创建系统账户或声称这些验收通过。
