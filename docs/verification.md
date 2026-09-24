@@ -50,3 +50,11 @@ Refactor / 回归结果:
 - Green：`go test ./...` 全部通过，包括本机真实目录联接、大小写别名、最近仓库、gitdir 文件、非 Git、非法 marker 不回显等检查。
 - `go vet ./...`、Windows 构建以及实际 `bin/dvl.exe status` 成功。
 - 未验证：网络 UNC 共享、特殊文件系统、需要系统配置才能创建的区分大小写目录。实现保留实际目录名大小写，没有全路径 lower-case 合并。
+
+## 2026-09-24 / M2 / SEC-07..09
+
+- Red：存储层 CRUD、初始化、失败保留与并发测试因 not implemented 桩失败。
+- Green：实现后 go test ./internal/vault 通过。覆盖重复 JSON 键/未知版本/结构损坏、当前项目隔离、大小写键、空值、加密/解密失败不回显敏感异常、替换失败旧文件保持逐字节一致。
+- 12 个并发更新无丢失；本里程碑是多 goroutine，跨进程证据留待真实 DPAPI 集成。
+- 故障注入验证临时密文文件清理。测试 Protector 仅存在于 *_test.go，磁盘没有测试假 Secret 明文。
+- go test ./...、go vet ./...、Windows build 全部通过；生产 CLI 仍只提供帮助、版本、身份 status。

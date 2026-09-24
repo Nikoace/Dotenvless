@@ -2,7 +2,7 @@
 
 Windows-first 本地 Secret 管理 CLI。将 Secret 保存在项目外的加密 Vault 中，在运行程序时注入子进程环境变量，使开发不再依赖真实 `.env` 文件。
 
-当前阶段：M1 已完成。帮助、版本与项目身份 status 可运行，以下 Secret 工作流仍是目标用法。
+当前阶段：M2 已完成。帮助、版本与项目身份 status 可运行，以下 Secret 工作流仍是目标用法。
 
 ```powershell
 dvl init
@@ -34,7 +34,8 @@ V0.1 使用 Windows DPAPI Current User scope 保护 Secret，不提供明文 `ge
 | 规格、测试计划 | 基线已建立；D-01/D-02/D-03 已确认 |
 | M0 项目初始化 | 完成：帮助/版本、测试、Windows CI 定义 |
 | M1 项目身份 | 完成：Git 根、子目录、worktree、联接、基础 status |
-| M2–M5 核心功能 | 未开始 |
+| M2 Vault 存储 | 完成：严格校验、锁、密文原子替换；CLI 尚未接入 |
+| M3–M5 核心功能 | 未开始 |
 | M6–M8 导入、示例、状态检查 | 未开始 |
 
 运行时离线与开发工具下载是不同范围；开发工具链固定为 Go 1.27.1，位于忽略的 `.tools/go`，已核对官方 SHA-256。发布许可证尚未选定，不预设开源授权。
