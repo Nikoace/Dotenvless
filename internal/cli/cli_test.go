@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -38,5 +40,28 @@ func TestInvalidArgumentsDoNotEchoInput(t *testing.T) {
 		if strings.Contains(out.String()+err.String(), secret) {
 			t.Fatal("argument leaked")
 		}
+	}
+}
+
+func TestStatusReportsIdentityWithoutVault(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	appdata := t.TempDir()
+	t.Setenv("APPDATA", appdata)
+	t.Chdir(root)
+	var out, err bytes.Buffer
+	if code := Run([]string{"status"}, nil, &out, &err); code != 0 {
+		t.Fatalf("exit=%d, error=%s", code, err.String())
+	}
+	for _, label := range []string{"Project:", "Root:", "ID:"} {
+		if !strings.Contains(out.String(), label) {
+			t.Errorf("missing %s", label)
+		}
+	}
+	files, readErr := os.ReadDir(appdata)
+	if readErr != nil || len(files) != 0 {
+		t.Fatal("status created vault state")
 	}
 }

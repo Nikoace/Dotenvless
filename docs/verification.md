@@ -41,3 +41,12 @@ Refactor / 回归结果:
 - 冒烟：二进制 `--help` 输出用法，`--version` 输出 `dvl 0.1.0-dev`，均返回 0。
 - Windows CI 文件已建立，但没有远程运行结果。
 - 环境限制：沙箱创建的 `.git` 属于另一 Windows 身份；尝试调整该目录所有者被 OS 拒绝，未改变权限。开发命令使用进程级 `safe.directory` 精确信任本仓库根目录，未修改全局 Git 配置。普通沙箱启动仍异常。
+
+## 2026-09-24 / M1 / PROJ-01..05、M1-01..10
+
+- Red：`go test ./internal/project ./internal/cli`；根/子目录、隔离、worktree、目录联接因失败桩报错，status 返回 2，测试失败。
+- 首次实现后，真实目录联接仍产生不同 ID。保留该失败并诊断为仅 `filepath.EvalSymlinks` 未得到该环境下的物理目标。
+- 改为 `CreateFile` + `GetFinalPathNameByHandle` 获取实际目录，再规范化路径。Windows API 由固定的 `golang.org/x/sys v0.48.0` 提供。
+- Green：`go test ./...` 全部通过，包括本机真实目录联接、大小写别名、最近仓库、gitdir 文件、非 Git、非法 marker 不回显等检查。
+- `go vet ./...`、Windows 构建以及实际 `bin/dvl.exe status` 成功。
+- 未验证：网络 UNC 共享、特殊文件系统、需要系统配置才能创建的区分大小写目录。实现保留实际目录名大小写，没有全路径 lower-case 合并。
