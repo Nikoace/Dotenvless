@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dotenvless"
+  short_description: "Use Dotenvless without exposing secret values"
+  default_prompt: "Use $dotenvless to check this project’s secret setup and run its application without displaying secret values."

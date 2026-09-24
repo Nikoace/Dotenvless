@@ -17,5 +17,6 @@
 
 ### 工程
 
+- 新增可复制的 `dotenvless` Agent Skill、命令参考、Codex/Claude Code 接入说明与使用边界。
 - SDD/TDD 规格与验证记录、Windows CI、贡献和问题报告模板。
 - 本机真实 DPAPI、控制台、Node/Python/npm/Gradle 及离线应用集成证据；跨账户拒绝、独立 Windows 系统与远程 CI 仍需分别验收。

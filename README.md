@@ -72,6 +72,19 @@ dvl run -- npm run dev
 
 普通可执行文件直接启动；`.cmd/.bat` 自动通过系统 `cmd.exe` 执行，`./gradlew` 优先使用相邻 `gradlew.bat`。批处理参数中的引号、`% ! ^ & | < >`、控制字符和末尾反斜杠会被明确拒绝；需要 shell 语法时显式选择 shell。详见[参数契约](docs/specs/m5-run.md)。
 
+## AI Agent Skill
+
+仓库提供 [dotenvless skill](skills/dotenvless/SKILL.md)，用于让 AI 按现有 CLI 契约检查键名、迁移 `.env` 和注入环境变量启动应用。支持复制到 Codex CLI / IDE、Claude Code 等 Agent Skills 客户端；完整安装步骤见 [AI 接入说明](docs/ai-skill.md)。
+
+安装后可这样调用（Codex 示例）：
+
+```text
+$dotenvless 检查当前项目的密钥配置，只报告已有和缺少的变量名。
+$dotenvless 使用 Vault 中的密钥运行 npm run dev，先检查启动脚本是否会输出密钥。
+```
+
+Skill 不读取真实 `.env` 内容或接收密钥值；已有文件交给本机 `dvl import`，新值由用户在本机隐藏输入。它不提供沙箱或日志脱敏能力，实际执行仍要求访问对应 Windows 身份下的项目与 CLI。
+
 ## 存储与安全范围
 
 - 默认 Vault：`%APPDATA%\dotenvless\vault.dat`，必须位于当前项目之外。每个值使用 DPAPI Current User 加密，并绑定项目 ID 与键名；写入采用进程锁和密文原子替换。

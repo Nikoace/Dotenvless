@@ -181,3 +181,14 @@ Refactor / 回归结果:
 - 首次扩大全量复现时，临时目录设在仓库内部，使非 Git 测试继承了仓库祖先；这是测试环境选择错误。改为系统临时区内的独立目录后，单独运行 `go test -count=1 -run '^TestBatchArgumentsAndGradleWrapperResolution$' -v ./internal/runner`，仍复现测试辅助进程退出 92，定位为 cwd 字符串比较同样不接受路径别名。
 - Green：两个测试改用 os.Stat/os.SameFile 验证目录身份，保留固定文件名、无写入、环境变量、参数、流及退出码断言。相同别名条件下，配置和批处理针对性测试均通过。
 - 完整回归：仓库外的隔离路径别名环境下，`go test -count=1 -json ./...` 得到 79 项通过、4 项既有可选验收跳过、0 失败；gofmt、go vet、Windows 构建和二进制版本冒烟通过。此次修改只涉及测试与文档，产品实现保持不变。
+
+## 2026-09-24 / AI Skill / SKILL-01..06
+
+- 从 main 的 `684dffa` 创建 `feat/dotenvless-ai-skill`；先写 docs/specs/ai-skill.md，再创建 `skills/dotenvless`。本轮只修改文档与 skill 元数据，按 CONTRIBUTING.md 不新增文案测试，不声称 TDD Red/Green 或产品行为变化。
+- 用 skill-creator 的 `init_skill.py` 初始化包，编写调用流程与自包含命令参考，并生成 agents/openai.yaml。交付物位于本仓库分支，没有安装到个人 skill 目录。
+- 核对 `internal/cli/cli.go`、`status.go`、`import.go`、`example.go`、`internal/runner/runner.go`、`internal/config/config.go`、工作区检查与 M5/M8 规格。覆盖仅 status 接受目录、未初始化 status 可返回 0、隐藏终端录入、整批冲突、模板拒绝覆盖、全部键注入、输出不脱敏、路径身份等契约。
+- 使用 skill-creator 的 `quick_validate.py skills/dotenvless` 返回 `Skill is valid!`。该脚本是本轮开发环境工具，不是仓库运行依赖。
+- Python/PyYAML 检查 6 个本轮相关 Markdown 文件的 UTF-8/LF、末尾换行、未完成占位符与 24 个本地链接，全部通过；UI 元数据字段、描述长度和显式 `$dotenvless` 调用通过。完整复制 skill 到仓库外临时目录后，3 个文件逐字节一致，包内参考全部在复制目录内解析；检查结束后清理临时副本。
+- 两个独立代理仅读取 skill 和虚构任务记录，未提供预期答案，也未执行真实凭据操作。迁移场景：已有键冲突且模板已存在，输出保留 Vault/源文件/模板，不擅自 overwrite，明确迁移未完成。启动场景：npm predev 含 `console.log(process.env)`，输出暂停启动、检查入口并处理环境转储，不用值/哈希探针，不把键名存在当成凭据验证。这是指令场景验证，不是 Windows 运行时或客户端加载测试。
+- 接入文档的 Codex 与 Claude Code 目录/调用方式已核对官方文档；仓库只维护一份可复制的 skill。`git diff --check` 通过，未修改 Go 源码、依赖或 CI 配置。
+- 未执行：本轮 Linux 环境下的 Windows DPAPI/交互终端、PowerShell 安装片段实际执行、Codex/Claude Code 客户端加载、真实应用启动。没有访问真实 Vault 或 .env，没有重复 Go 测试/vet/Windows 构建；推送触发的远程 CI 结果以 Actions 记录为准，不计作本轮本地验证。
