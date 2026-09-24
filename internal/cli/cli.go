@@ -22,6 +22,7 @@ Commands:
   init         Initialize this Git project
   set <KEY>    Read a secret from a hidden terminal prompt
   list         List secret names
+  example      Create a key-only .env.example at the Git root
   import [--overwrite] <FILE>  Import a dotenv file without deleting it
   unset <KEY>  Remove a secret
   status       Show Git project identity
@@ -50,7 +51,7 @@ func (a app) run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
 			return 0
 		}
 	}
-	valid := len(args) == 1 && (args[0] == "init" || args[0] == "list" || args[0] == "status")
+	valid := len(args) == 1 && (args[0] == "init" || args[0] == "list" || args[0] == "status" || args[0] == "example")
 	valid = valid || (len(args) == 2 && (args[0] == "set" || args[0] == "unset"))
 	valid = valid || (len(args) >= 3 && args[0] == "run" && args[1] == "--")
 	importPath, overwrite, validImport := importArguments(args)
@@ -79,6 +80,16 @@ func (a app) run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
 	}
 	s := vault.New(path, crypto.DPAPI{})
 	switch args[0] {
+	case "example":
+		keys, err := s.Keys(p.ID)
+		if err != nil {
+			return fail(err)
+		}
+		if err := writeExample(p.Root, keys); err != nil {
+			return fail(err)
+		}
+		fmt.Fprintln(stdout, "Created .env.example")
+		return 0
 	case "import":
 		if _, err := s.Keys(p.ID); err != nil {
 			return fail(err)

@@ -240,3 +240,44 @@ func TestImportCommandPreservesSourceAndRejectsConflicts(t *testing.T) {
 		t.Fatal("source changed")
 	}
 }
+
+func TestExampleWritesOnlyNamesAtRootAndNeverOverwrites(t *testing.T) {
+	root, data := t.TempDir(), t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(root, "src")
+	if err := os.Mkdir(sub, 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(sub)
+	t.Setenv("APPDATA", data)
+	a := app{readSecret: func(*os.File) ([]byte, error) { return []byte("FAKE_EXAMPLE_SECRET"), nil }}
+	var out, stderr bytes.Buffer
+	for _, args := range [][]string{{"init"}, {"set", "Z_TOKEN"}, {"set", "A_TOKEN"}, {"example"}} {
+		if code := a.run(args, nil, &out, &stderr); code != 0 {
+			t.Fatalf("example flow exit=%d error=%s", code, stderr.String())
+		}
+	}
+	path := filepath.Join(root, ".env.example")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != "A_TOKEN=\nZ_TOKEN=\n" {
+		t.Fatal("example contains unexpected content")
+	}
+	if _, err := os.Stat(filepath.Join(sub, ".env.example")); !os.IsNotExist(err) {
+		t.Fatal("example created outside root")
+	}
+	if code := a.run([]string{"example"}, nil, &out, &stderr); code != 1 {
+		t.Fatal("existing example overwritten")
+	}
+	after, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("existing example changed")
+	}
+	if strings.Contains(out.String()+stderr.String(), "FAKE_EXAMPLE_SECRET") {
+		t.Fatal("example command leaked value")
+	}
+}

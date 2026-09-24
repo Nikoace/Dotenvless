@@ -97,3 +97,10 @@ Refactor / 回归结果:
 - 默认冲突整次拒绝，显式 --overwrite 成功；真实 CLI 保留导入源文件。
 - 故障注入：第一条和后续条目加密失败都保留旧 Vault 的逐字节内容，没有部分键落盘。
 - go test ./...、go vet ./...、Windows build 全部通过。
+
+## 2026-09-24 / M7 / EXAMPLE-01
+
+- Red：CLI example 返回用法错误，根目录示例流程失败。
+- Green：从项目子目录运行，根目录生成排序 KEY=，无假 Secret 值；重复执行返回错误，已有文件逐字节保持。
+- 使用 O_EXCL 排他创建，不跟随已有路径覆盖文件；未实现强制覆盖。
+- go test ./...、go vet ./...、Windows build 全部通过。
