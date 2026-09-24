@@ -34,6 +34,6 @@ $env:DVL_DPAPI_CHECK_MODE = 'read-other'
 ## 其他发布前检查
 
 - Windows 10 与 Windows 11 的独立系统验收；当前本机结果不代表全部 Windows 版本。
-- 远程 Windows CI：工作流已写入，但本项目没有配置远程仓库或实际运行记录。
+- 远程 Windows CI：工作流已写入，执行状态与日志以仓库 [Actions](https://github.com/Nikoace/Dotenvless/actions) 记录为准。
 - UNC 共享与特殊文件系统没有现场测试；本版本以本地 Windows Git 项目为主要场景。
 - 发布许可证尚未指定，仓库不预设开源授权。

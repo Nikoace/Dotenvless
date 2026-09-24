@@ -1,28 +1,30 @@
-# 首次推送到 GitHub
+# GitHub 发布
 
-当前工程已准备好以 `main` 作为默认分支。暂不添加许可证，也不预先填写未知的仓库 URL、作者联系方式或下载链接。
+公开仓库：[Nikoace/Dotenvless](https://github.com/Nikoace/Dotenvless)，默认分支为 `main`。暂不添加许可证；当前版本仍为 0.1.0-dev。
 
-## 推送
+## 推送更新
 
-在 GitHub 创建空仓库；如需保留本地历史，创建时不额外初始化 README、.gitignore 或许可证。进入本仓库，替换下面的仓库 URL：
+本地 origin 已指向上述仓库。进入本仓库，先检查工作区与远程地址，再推送 main：
 
 ```powershell
 git status
-git remote add origin <repository-url>
+git remote -v
 git push -u origin main
 ```
 
-如果已有 origin，先运行 `git remote -v` 核对地址，勿重复添加或强制推送。本轮工程准备没有创建远程仓库或执行推送。
+如需重新获取项目，可运行 `git clone https://github.com/Nikoace/Dotenvless.git`。不要重复添加 origin，也不要将缓存、工具链、Vault 或真实环境文件加入提交。
 
 ## 仓库设置
 
-- 默认分支设为 main。首次 Windows CI 通过后，可将该检查设为合并要求。
+- 默认分支为 main。Windows CI 通过后，可将该检查设为合并要求。
 - 在 Security 设置中启用私密漏洞报告，为 SECURITY.md 中的报告流程提供实际入口。
-- 当前版本仍为 0.1.0-dev；CI 构建产物不等于经过全部发布验收的稳定 Release。
+- CI 构建产物不等于经过全部发布验收的稳定 Release。
 - 暂无许可证。新增许可证、正式 Release 和模块路径变更应分别作出明确决定。
 
-CI 使用固定提交版本的官方 [checkout](https://github.com/actions/checkout)、[setup-go](https://github.com/actions/setup-go) 与 [upload-artifact](https://github.com/actions/upload-artifact)；Go 版本从 go.mod 读取，上传范围仅为 bin/dvl.exe。首轮远程 CI 结果需在推送后确认。
+CI 使用固定提交版本的官方 [checkout](https://github.com/actions/checkout)、[setup-go](https://github.com/actions/setup-go) 与 [upload-artifact](https://github.com/actions/upload-artifact)；Go 版本从 go.mod 读取，上传范围仅为 bin/dvl.exe。执行结果见仓库 [Actions](https://github.com/Nikoace/Dotenvless/actions)。
 
-## 已有历史
+## 历史清理
 
-保留每个里程碑、Red/Green 证据和集成验收记录。当前文档使用仓库相对路径、平台环境变量和通用项目描述。此次文本清理不改写已有 Git 历史，旧提交仍可能包含清理前的本机路径。
+公开推送前，经用户确认，历史文档中的本机路径、账户说明和专属缓存目录已改为通用描述。原有 15 个提交及其里程碑、Red/Green 和集成验收事实全部保留，提交 SHA 已改变；逐提交比较确认代码、测试及 CI 配置未变。
+
+原始历史备份与提交映射仅保存在本地，不加入 Git 或上传。历史验收记录提到的旧 SHA 对应清理前的执行状态。
