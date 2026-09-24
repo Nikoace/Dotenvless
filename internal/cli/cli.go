@@ -4,6 +4,7 @@ import (
 	"dotenvless/internal/config"
 	"dotenvless/internal/crypto"
 	"dotenvless/internal/project"
+	"dotenvless/internal/runner"
 	"dotenvless/internal/vault"
 	"fmt"
 	"io"
@@ -22,6 +23,7 @@ Commands:
   list         List secret names
   unset <KEY>  Remove a secret
   status       Show Git project identity
+  run -- <COMMAND> [ARG...]  Run a child with project secrets
 
 Options:
   --help, -h   Show help
@@ -48,6 +50,7 @@ func (a app) run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
 	}
 	valid := len(args) == 1 && (args[0] == "init" || args[0] == "list" || args[0] == "status")
 	valid = valid || (len(args) == 2 && (args[0] == "set" || args[0] == "unset"))
+	valid = valid || (len(args) >= 3 && args[0] == "run" && args[1] == "--")
 	if !valid {
 		fmt.Fprintln(stderr, "Invalid arguments. Use dvl --help.")
 		return 2
@@ -72,6 +75,17 @@ func (a app) run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
 	}
 	s := vault.New(path, crypto.DPAPI{})
 	switch args[0] {
+	case "run":
+		values, err := s.Values(p.ID)
+		if err != nil {
+			return fail(err)
+		}
+		defer clear(values)
+		code, err := runner.Run(args[2:], values, stdin, stdout, stderr)
+		if err != nil {
+			return fail(err)
+		}
+		return code
 	case "init":
 		if err := s.Init(p.ID); err != nil {
 			return fail(err)

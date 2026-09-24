@@ -158,3 +158,50 @@ func TestSecretLineEditingCancellationAndLimits(t *testing.T) {
 		}
 	}
 }
+
+func TestRunInjectsSecretAndPreservesExit(t *testing.T) {
+	root, data := t.TempDir(), t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	t.Setenv("APPDATA", data)
+	t.Setenv("DVL_CLI_CHILD", "1")
+	a := app{readSecret: func(*os.File) ([]byte, error) { return []byte("FAKE-CLI-RUN-SECRET"), nil }}
+	var out, stderr bytes.Buffer
+	for _, args := range [][]string{{"init"}, {"set", "DVL_CHILD_SECRET"}} {
+		if code := a.run(args, nil, &out, &stderr); code != 0 {
+			t.Fatal("setup failed")
+		}
+	}
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	stderr.Reset()
+	code := a.run([]string{"run", "--", binary, "-test.run=^TestCLIRunHelper$"}, nil, &out, &stderr)
+	if code != 23 {
+		t.Fatalf("child exit not preserved: %d %s", code, stderr.String())
+	}
+	if out.Len() != 0 || stderr.Len() != 0 {
+		t.Fatal("wrapper printed child secret")
+	}
+	if os.Getenv("DVL_CHILD_SECRET") != "" {
+		t.Fatal("secret changed parent environment")
+	}
+	for _, args := range [][]string{{"run"}, {"run", "--"}, {"run", binary}} {
+		if code := a.run(args, nil, &out, &stderr); code != 2 {
+			t.Fatal("invalid run grammar accepted")
+		}
+	}
+}
+func TestCLIRunHelper(t *testing.T) {
+	if os.Getenv("DVL_CLI_CHILD") != "1" {
+		return
+	}
+	if os.Getenv("DVL_CHILD_SECRET") != "FAKE-CLI-RUN-SECRET" {
+		os.Exit(91)
+	}
+	os.Exit(23)
+}

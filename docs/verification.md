@@ -77,3 +77,14 @@ Refactor / 回归结果:
 - 使用独立 Windows PTY 实际输入 FAKE_TTY_SECRET_2468；输出未出现该值，测试确认结果正确且前后 ConsoleMode 完全相同。
 - 第二次 Windows PTY 输入测试假值后 Ctrl+C，取消成功、无返回值、前后 ConsoleMode 相同。
 - go test ./...、go vet ./... 和 Windows 构建通过；交互测试默认在无人值守测试中显式跳过，以上单独执行结果为证据。
+
+## 2026-09-24 / M5 / RUN-01、SEC-01/05
+
+- Red：真实子进程参数/流/退出码、批处理、环境合并测试均在失败桩上失败；CLI run 集成初次返回 2 而非子进程的 23。
+- Green：普通程序保留空参数、Unicode、引号、%、&、尾反斜杠；批处理支持安全子集并在启动前拒绝已列危险参数，gradlew.bat 自动解析成功。
+- 验证继承 stdin/stdout/stderr/cwd，父环境不变，Windows 大小写变量覆盖，0/37/23 等退出码透传，没有临时 .env。
+- 实际工具：Python 3.14.2、Node 25.2.1、Windows PowerShell、CMD、npm script 全部检查到假 Secret。
+- 实际 Gradle 8.9 + Java 17：独立 GRADLE_USER_HOME，--offline --no-daemon，verifySecret 任务 BUILD SUCCESSFUL（17.77 秒）；没有运行其他项目构建。
+- 真实 Windows 控制台 Ctrl+C 测试：子进程收到事件并退出 29，运行器得到 29，内部测试输出 CTRL_C_OK / PASS。承载测试的外层 PowerShell 同时收到事件，因此工具报告其退出 1；不把外层状态冒充 0。
+- 完整二进制验收：隔离项目 init → 两次隐藏 set → list → run Python；Python 以哈希检查两值，输出 ENV_INJECTION_OK；Vault 无假值明文、项目没有 .env，整条流程 exit 0。
+- go test ./...、go vet ./...、Windows build 通过。交互终端与 Gradle 的特定验收已单独执行，默认 CI 不假定具备这些条件。
