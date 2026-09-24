@@ -77,6 +77,8 @@ go build -trimpath -o bin/dvl.exe ./cmd/dvl
 
 已实际验证：真实 DPAPI、跨进程写入与退出释放锁、隐藏输入/取消、Ctrl+C、完整 CLI→Python 流程，以及 Python/Node/PowerShell/CMD/npm/Gradle 的环境注入。交互和跨账户测试在默认测试中显式跳过，需要专门运行；真实 Gradle 测试通过 DVL_TEST_GRADLE 指向本机发行版，使用独立缓存、离线与 --no-daemon。
 
+实际项目集成：已在外部测试项目 relations 中使用隔离 Vault 和假值运行 Node/npm，44 项项目测试及类型检查通过；实际 API/研究模块完成离线图谱持久化验证，项目原有文件保持不变。见 [relations 验收范围](docs/specs/integration-relations.md)和[执行记录](docs/verification.md)。
+
 ## 开发流程
 
 采用 SDD（规格驱动）与 TDD：规格/验收 ID → 真实失败测试 → 最小实现 → 回归与重构 → 文档更新 → Git 提交。关键设计先讨论，按 M0–M8 顺序推进。

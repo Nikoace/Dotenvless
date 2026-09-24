@@ -116,3 +116,17 @@ Refactor / 回归结果:
 - gofmt 检查无差异，go vet ./... 与 Windows 构建通过；实际二进制 help/status 正常。
 - 本机系统版本：Windows NT 10.0.26200.0。未声称已测试独立 Windows 10/11、UNC 或远程 CI。
 - 所有测试仅使用假值；工具链/缓存/编译结果未加入 Git。实际项目根 status 显示 Vault 尚未初始化，没有创建开发者真实 Vault。
+
+## 2026-09-24 / relations 实际项目集成 / REL-01..08
+
+- 按用户指定，在外部测试项目 relations 的实际工作区执行；先定义 docs/specs/integration-relations.md，再从当前源码构建测试二进制。这轮仅增加验收文档，没有修改产品实现，未声称新增 TDD Red/Green。
+- 测试输出保存在被 Git 忽略的隔离测试目录，包含逐步日志、前后文件快照、result.json 和测试驱动；其中所有凭据及 SQLite 内容均为生成的假数据。
+- 隔离 APPDATA、Vault、SQLite、TEMP 和 npm 缓存。没有读取真实 .env.local 或真实 Vault，没有调用 dev/start 或外部模型/Tavily 服务；未修改 relations 的 Git 索引。
+- REL-01/02：未初始化 status 不创建 Vault；init → import → list → status 通过，实际 DPAPI 解密验证成功。根目录与 src 子目录得到相同项目 ID。8 个假值键包含 Unicode 与多行值；Vault 没有假值明文，CLI 输出不含测试值，导入源保留。
+- REL-03：重复 import 返回 1，Vault 字节不变；--overwrite 成功。另导入不同的新 MODEL_API_KEY 并由 Node 对比，确认覆盖更新实际生效。
+- REL-04/05：`dvl run -- node.exe <隔离探针>` 从 relations 目录加载该项目实际 configuration、API route、Store、runResearch 和 FixtureProvider。API 创建任务返回 201，state 返回 200，注入配置 ready；研究产生 3 个节点、2 条关系，全部关系引用指向持久化来源。SQLite 关闭/重新打开后数量一致。探针禁止 fetch，外部请求计数为 0；API 响应未返回测试凭据。cwd、父变量覆盖与 Unicode/多行值均校验成功，显式退出 37 被正确透传。
+- REL-06：通过 `dvl run -- npm test` 执行实际 npm.cmd 和 tsx 测试，44 项通过、0 失败、0 跳过（Node 测试报告耗时约 1.30 秒）。`dvl run -- npm run typecheck -- --incremental false` 返回 0；关闭增量避免写入项目 tsbuildinfo。
+- REL-07：已有 .env.example 返回拒绝覆盖；unset 后测试键消失。初次跨项目探针选用了工具仓库，但隔离 Vault 正位于其缓存目录中，因此收到正确的“Vault 必须位于项目外”拒绝；这是测试目录选择错误，不是产品故障。仅将第二项目替换为隔离 APPDATA 旁边生成的 Git 项目后，init/list/run 均通过，未收到 relations 值，保留父进程哨兵变量。未重复已通过的项目测试。
+- REL-08：前后比较 37 个源文件/根文件/数据库文件记录；普通文件校验哈希，.env 与 data 文件仅校验大小/修改时间而不读取内容，全部一致。relations 的完整 Git porcelain 输出前后一致，保留该仓库原有未提交文件。status 正确列出 .env.local 为 ignored，未读取文件内容。
+- 本轮结论：Dotenvless 与 relations 的离线 Node/npm/实际应用模块集成通过。没有运行浏览器/Next dev、生产构建、真实 API 或真实凭据迁移，不据此声称这些场景通过。
+- 已知待修复：前次全量审查复现的多行引号值首行尾空白丢失，以及方括号路径 Git 状态误报仍未修复；本轮正常多行样本不包含首行尾空白。
