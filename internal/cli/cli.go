@@ -3,6 +3,7 @@ package cli
 import (
 	"dotenvless/internal/config"
 	"dotenvless/internal/crypto"
+	"dotenvless/internal/dotenv"
 	"dotenvless/internal/project"
 	"dotenvless/internal/runner"
 	"dotenvless/internal/vault"
@@ -21,6 +22,7 @@ Commands:
   init         Initialize this Git project
   set <KEY>    Read a secret from a hidden terminal prompt
   list         List secret names
+  import [--overwrite] <FILE>  Import a dotenv file without deleting it
   unset <KEY>  Remove a secret
   status       Show Git project identity
   run -- <COMMAND> [ARG...]  Run a child with project secrets
@@ -51,6 +53,8 @@ func (a app) run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
 	valid := len(args) == 1 && (args[0] == "init" || args[0] == "list" || args[0] == "status")
 	valid = valid || (len(args) == 2 && (args[0] == "set" || args[0] == "unset"))
 	valid = valid || (len(args) >= 3 && args[0] == "run" && args[1] == "--")
+	importPath, overwrite, validImport := importArguments(args)
+	valid = valid || validImport
 	if !valid {
 		fmt.Fprintln(stderr, "Invalid arguments. Use dvl --help.")
 		return 2
@@ -75,6 +79,34 @@ func (a app) run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
 	}
 	s := vault.New(path, crypto.DPAPI{})
 	switch args[0] {
+	case "import":
+		if _, err := s.Keys(p.ID); err != nil {
+			return fail(err)
+		}
+		file, err := os.Open(importPath)
+		if err != nil {
+			fmt.Fprintln(stderr, "Cannot open dotenv source.")
+			return 1
+		}
+		values, err := dotenv.Parse(file)
+		_ = file.Close()
+		if err != nil {
+			return fail(err)
+		}
+		defer func() {
+			for _, value := range values {
+				clear(value)
+			}
+		}()
+		keys, err := s.Import(p.ID, values, overwrite)
+		if err != nil {
+			return fail(err)
+		}
+		fmt.Fprintf(stdout, "Found %d variables\n", len(keys))
+		for _, key := range keys {
+			fmt.Fprintln(stdout, key+" imported")
+		}
+		return 0
 	case "run":
 		values, err := s.Values(p.ID)
 		if err != nil {

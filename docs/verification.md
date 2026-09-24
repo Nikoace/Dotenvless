@@ -88,3 +88,12 @@ Refactor / 回归结果:
 - 真实 Windows 控制台 Ctrl+C 测试：子进程收到事件并退出 29，运行器得到 29，内部测试输出 CTRL_C_OK / PASS。承载测试的外层 PowerShell 同时收到事件，因此工具报告其退出 1；不把外层状态冒充 0。
 - 完整二进制验收：隔离项目 init → 两次隐藏 set → list → run Python；Python 以哈希检查两值，输出 ENV_INJECTION_OK；Vault 无假值明文、项目没有 .env，整条流程 exit 0。
 - go test ./...、go vet ./...、Windows build 通过。交互终端与 Gradle 的特定验收已单独执行，默认 CI 不假定具备这些条件。
+
+## 2026-09-24 / M6 / IMPORT-01
+
+- Red：dotenv 正常语法、Vault Import 与 CLI import 在失败桩上失败。
+- Green：UTF-8/BOM/CRLF、注释、export、空值、单/双引号、转义、多行以及字面变量/命令文本均通过。
+- 错误场景：非法语法、重复大小写键、非法 UTF-8/NUL、未知转义、超长文件/值；错误不回显原始 Secret 行。
+- 默认冲突整次拒绝，显式 --overwrite 成功；真实 CLI 保留导入源文件。
+- 故障注入：第一条和后续条目加密失败都保留旧 Vault 的逐字节内容，没有部分键落盘。
+- go test ./...、go vet ./...、Windows build 全部通过。

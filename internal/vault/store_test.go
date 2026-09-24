@@ -17,12 +17,13 @@ type fixtureProtector struct {
 	mu                    sync.Mutex
 	records               map[string]fixtureRecord
 	failProtect, failOpen bool
+	failAt                int
 }
 
 func (f *fixtureProtector) Protect(value, context []byte) ([]byte, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.failProtect {
+	if f.failProtect || (f.failAt > 0 && len(f.records)+1 == f.failAt) {
 		return nil, errors.New("FAKE-SENSITIVE-ERROR")
 	}
 	token := fmt.Sprintf("fixture-token-%d", len(f.records)+1)
@@ -184,5 +185,64 @@ func TestConcurrentUpdates(t *testing.T) {
 	must(t, err)
 	if len(keys) != 12 {
 		t.Fatalf("lost writes: %d", len(keys))
+	}
+}
+
+func TestImportIsAtomicAndRequiresExplicitOverwrite(t *testing.T) {
+	s, p := fixture(t)
+	must(t, s.Init("p"))
+	must(t, s.Set("p", "TOKEN", []byte("FAKE-OLD")))
+	before, err := os.ReadFile(s.path)
+	must(t, err)
+	values := map[string][]byte{"token": []byte("FAKE-NEW"), "ADDED": []byte("FAKE-ADDED")}
+	if _, err := s.Import("p", values, false); err == nil {
+		t.Fatal("conflict accepted")
+	}
+	after, err := os.ReadFile(s.path)
+	must(t, err)
+	if !bytes.Equal(before, after) {
+		t.Fatal("conflicting import changed vault")
+	}
+	p.failProtect = true
+	if _, err := s.Import("p", values, true); err == nil {
+		t.Fatal("failed encryption accepted")
+	}
+	after, err = os.ReadFile(s.path)
+	must(t, err)
+	if !bytes.Equal(before, after) {
+		t.Fatal("failed import changed vault")
+	}
+	p.failProtect = false
+	keys, err := s.Import("p", values, true)
+	must(t, err)
+	if !reflect.DeepEqual(keys, []string{"ADDED", "TOKEN"}) {
+		t.Fatal("imported keys mismatch")
+	}
+	actual, err := s.Values("p")
+	must(t, err)
+	if actual["TOKEN"] != "FAKE-NEW" || actual["ADDED"] != "FAKE-ADDED" {
+		t.Fatal("import values mismatch")
+	}
+}
+
+func TestImportRollsBackWhenLaterEncryptionFails(t *testing.T) {
+	s, p := fixture(t)
+	must(t, s.Init("p"))
+	must(t, s.Set("p", "OLD", []byte("FAKE-OLD")))
+	before, err := os.ReadFile(s.path)
+	must(t, err)
+	p.failAt = 3
+	if _, err := s.Import("p", map[string][]byte{"A": []byte("FAKE-A"), "B": []byte("FAKE-B")}, false); err == nil {
+		t.Fatal("later encryption failure ignored")
+	}
+	after, err := os.ReadFile(s.path)
+	must(t, err)
+	if !bytes.Equal(before, after) {
+		t.Fatal("partial import persisted")
+	}
+	keys, err := s.Keys("p")
+	must(t, err)
+	if !reflect.DeepEqual(keys, []string{"OLD"}) {
+		t.Fatal("partial keys persisted")
 	}
 }

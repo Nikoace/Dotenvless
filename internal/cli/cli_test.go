@@ -205,3 +205,38 @@ func TestCLIRunHelper(t *testing.T) {
 	}
 	os.Exit(23)
 }
+
+func TestImportCommandPreservesSourceAndRejectsConflicts(t *testing.T) {
+	root, data := t.TempDir(), t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	t.Setenv("APPDATA", data)
+	source := []byte("TOKEN=FAKE_IMPORT_VALUE\n")
+	if err := os.WriteFile("input.env", source, 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, stderr bytes.Buffer
+	if code := Run([]string{"init"}, nil, &out, &stderr); code != 0 {
+		t.Fatal("init failed")
+	}
+	out.Reset()
+	stderr.Reset()
+	if code := Run([]string{"import", "input.env"}, nil, &out, &stderr); code != 0 {
+		t.Fatalf("import exit=%d", code)
+	}
+	if strings.Contains(out.String()+stderr.String(), "FAKE_IMPORT_VALUE") {
+		t.Fatal("import value leaked")
+	}
+	if code := Run([]string{"import", "input.env"}, nil, &out, &stderr); code != 1 {
+		t.Fatal("conflicting import accepted")
+	}
+	if code := Run([]string{"import", "--overwrite", "input.env"}, nil, &out, &stderr); code != 0 {
+		t.Fatal("explicit overwrite failed")
+	}
+	after, err := os.ReadFile("input.env")
+	if err != nil || !bytes.Equal(after, source) {
+		t.Fatal("source changed")
+	}
+}

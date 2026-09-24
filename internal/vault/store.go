@@ -294,3 +294,53 @@ func (s *Store) save(data []byte) error {
 	}
 	return nil
 }
+
+func (s *Store) Import(project string, values map[string][]byte, overwrite bool) ([]string, error) {
+	normalized := map[string][]byte{}
+	keys := make([]string, 0, len(values))
+	for key, value := range values {
+		key, err := NormalizeKey(key)
+		if err != nil {
+			return nil, err
+		}
+		if err := ValidateValue(value); err != nil {
+			return nil, err
+		}
+		if _, ok := normalized[key]; ok {
+			return nil, errors.New("duplicate imported key")
+		}
+		normalized[key] = value
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	err := s.transaction(false, len(keys) > 0, func(d *document) error {
+		entries, ok := d.Projects[project]
+		if !ok {
+			return ErrNotInitialized
+		}
+		for _, key := range keys {
+			if _, exists := entries[key]; exists && !overwrite {
+				return errors.New("import conflicts with existing keys; use --overwrite explicitly")
+			}
+		}
+		encrypted := map[string][]byte{}
+		for _, key := range keys {
+			if s.protector == nil {
+				return ErrCrypto
+			}
+			value, err := s.protector.Protect(normalized[key], contextFor(project, key))
+			if err != nil || len(value) == 0 {
+				return ErrCrypto
+			}
+			encrypted[key] = value
+		}
+		for key, value := range encrypted {
+			entries[key] = value
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return keys, nil
+}

@@ -38,7 +38,8 @@ V0.1 使用 Windows DPAPI Current User scope 保护 Secret，不提供明文 `ge
 | M3 Windows DPAPI | 完成：真实加密/绑定/篡改检查；跨账户验收待办 |
 | M4 Secret CRUD | 完成：真实 DPAPI、隐藏输入、取消恢复、项目外存储 |
 | M5 运行器 | 完成：环境注入、退出码、脚本和真实工具验收 |
-| M6–M8 导入、示例、状态检查 | 未开始 |
+| M6 dotenv 导入 | 完成：明确语法、事务提交、显式覆盖、源文件保留 |
+| M7–M8 示例、状态检查 | 未开始 |
 
 运行时离线与开发工具下载是不同范围；开发工具链固定为 Go 1.27.1，位于忽略的 `.tools/go`，已核对官方 SHA-256。发布许可证尚未选定，不预设开源授权。
 
@@ -61,3 +62,5 @@ V0.1 使用 Windows DPAPI Current User scope 保护 Secret，不提供明文 `ge
 `set` 需要交互式 Windows 终端，输入不显示字符；Enter 保存，Backspace 删除字符，Ctrl+C 取消。拒绝明文参数和重定向 stdin。变量名规范成大写，空值允许，值必须是无 NUL 的 UTF-8 文本且不超过 32 KiB。默认 Vault 位于 `%APPDATA%\dotenvless\vault.dat`；若该目录落入当前项目则拒绝操作。
 
 run 继承当前工作目录与标准流，只为子进程构造环境。自动支持 npm 的 .cmd 与 Gradle 的 .bat；./gradlew 会优先解析相邻的 gradlew.bat。批处理参数中不可靠的 shell 特殊字符会明确报错，详见 docs/specs/m5-run.md；普通程序直接传参。目标应用可主动输出或传递 Secret，dvl 不过滤其输出。
+
+导入：dvl import .env；同名键默认使整次导入失败，dvl import --overwrite .env 才覆盖。支持 UTF-8/BOM、CRLF、注释、export、引号和多行；不会展开变量或执行命令。源文件始终保留，语法边界见 docs/specs/m6-import.md。
