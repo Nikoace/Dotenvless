@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+var ErrNotGit = errors.New("not inside a Git project")
+
 type Identity struct{ Name, Root, ID string }
 
 // Discover resolves the physical working directory before walking to the nearest
@@ -44,7 +46,7 @@ func Discover(start string) (Identity, error) {
 		}
 		parent := filepath.Dir(root)
 		if parent == root {
-			return Identity{}, errors.New("not inside a Git project")
+			return Identity{}, ErrNotGit
 		}
 		root = parent
 	}

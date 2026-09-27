@@ -104,3 +104,5 @@ GitHub [Windows CI](.github/workflows/windows.yml) 执行格式检查、依赖�
 ## 许可证
 
 当前暂不添加许可证；未声明采用 MIT、Apache-2.0 或其他开源许可证。
+
+V0.2 内核进度：工程登记、普通目录归属、可取消的 Git 工程发现，以及带显式密文备份的 Vault v2 升级已完成。客户端接入与 CLI 新语法见后续 M11–M12。

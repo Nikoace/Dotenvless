@@ -190,3 +190,11 @@ Refactor / 回归结果:
 - Setup note: an early UI test while go mod tidy was still downloading failed on missing checksums; this was a dependency setup failure, not behavioral Red evidence. Retried only after tidy completed.
 - Fyne pinned to v2.8.1. Development-only LLVM-MinGW 20260922 UCRT x64 archive verified against SHA-256 e3ad77d117a4bea19a7a3b333341824d79a5a371004a10e25b8504e7b3047666 from its release asset digest. Compiler/cache remain ignored. No persistent environment changes.
 - M9 final checks: root go vet and Windows CLI build passed; desktop headless vet passed; native Windows desktop build with CGO_ENABLED=1 and -H=windowsgui passed. No interactive UI acceptance claimed.
+
+## 2026-09-27 / M10 / CENT-01, MIG-01, CONC-01
+- Red: go test -count=1 -run TestManager -v ./internal/vault failed the empty/revision and migration behaviors against unimplemented methods. Failure-preservation tests already passed against the rejecting stub and are retained as regression checks, not claimed as Red.
+- Green: manager tests passed, including ciphertext backup, context mismatch rejection, legacy read-only view, old-reader v2 rejection, decrypt/protect/replace/backup failure preservation, malformed/duplicate/unknown fields, stale revision and concurrent independent updates.
+- Red: go test -count=1 -v ./internal/application failed all 3 registry/discovery tests with unimplemented registration/scan.
+- Green: all 3 passed with real isolated DPAPI fake data: ordinary and nested roots, nested Git isolation, migrated hash association, in-project Vault rejection, source-independent discovery, skipped dependencies and cancellation.
+- Full root tests, vet and Windows CLI build passed; formatting and diff checks passed. The desktop shell's prior native build is unaffected by this core-only slice.
+- Legacy Store remains a strict v1 implementation for compatibility fixtures; Manager is the v2 transaction boundary. The CLI switches to the shared application service in M11.
