@@ -181,3 +181,12 @@ Refactor / 回归结果:
 - 首次扩大全量复现时，临时目录设在仓库内部，使非 Git 测试继承了仓库祖先；这是测试环境选择错误。改为系统临时区内的独立目录后，单独运行 `go test -count=1 -run '^TestBatchArgumentsAndGradleWrapperResolution$' -v ./internal/runner`，仍复现测试辅助进程退出 92，定位为 cwd 字符串比较同样不接受路径别名。
 - Green：两个测试改用 os.Stat/os.SameFile 验证目录身份，保留固定文件名、无写入、环境变量、参数、流及退出码断言。相同别名条件下，配置和批处理针对性测试均通过。
 - 完整回归：仓库外的隔离路径别名环境下，`go test -count=1 -json ./...` 得到 79 项通过、4 项既有可选验收跳过、0 失败；gofmt、go vet、Windows 构建和二进制版本冒烟通过。此次修改只涉及测试与文档，产品实现保持不变。
+
+## 2026-09-27 / M9 / DESK-01
+- Baseline: existing root go test -count=1 ./... passed before changes.
+- Spec: docs/specs/v0.2.md and accepted design decisions define M9–M13 before implementation.
+- Red: scripts/desktop.ps1 test -count=1 ./ui failed TestChineseManagementSections with "DESK-01: management navigation is missing" while Sections returned nil.
+- Green: implemented Chinese navigation and Fyne desktop shell; scripts/desktop.ps1 test -tags ci -count=1 ./... passed (1 UI test, main has no tests).
+- Setup note: an early UI test while go mod tidy was still downloading failed on missing checksums; this was a dependency setup failure, not behavioral Red evidence. Retried only after tidy completed.
+- Fyne pinned to v2.8.1. Development-only LLVM-MinGW 20260922 UCRT x64 archive verified against SHA-256 e3ad77d117a4bea19a7a3b333341824d79a5a371004a10e25b8504e7b3047666 from its release asset digest. Compiler/cache remain ignored. No persistent environment changes.
+- M9 final checks: root go vet and Windows CLI build passed; desktop headless vet passed; native Windows desktop build with CGO_ENABLED=1 and -H=windowsgui passed. No interactive UI acceptance claimed.
