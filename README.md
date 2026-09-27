@@ -120,3 +120,9 @@ dvl migrate
 ~~~
 
 基础配置由环境继承；unset 只删除所选层的绑定，可能恢复基础值。客户端中的“停用”还会排除父终端同名变量。旧 v1 Vault 可只读使用，修改前必须显式 migrate；原密文保存为 vault.dat.v1.bak。备份保留旧 DPAPI 绑定，不是跨机器可移植备份。
+
+### V0.2 客户端
+
+运行 bin/dvl-desktop.exe 可管理工程、基础配置、环境覆盖、共享引用和导入预览。值默认遮蔽，查看 15 秒后隐藏，失去焦点/切换工程时隐藏；复制通过 Windows 隐私剪贴板，30 秒后或退出时仅清理仍属于本次复制的内容。界面冲突提示后先刷新，再重新输入。
+
+桌面模块独立构建：先运行 scripts/setup-desktop.ps1 安装已固定并校验摘要的本地 C 编译器，再用 scripts/desktop.ps1 build -trimpath -ldflags '-H=windowsgui' -o ../bin/dvl-desktop.exe . 构建。CLI 继续纯 Go 构建。详细验收与未验证项见 docs/verification.md。
