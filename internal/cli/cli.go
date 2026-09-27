@@ -1,33 +1,39 @@
 package cli
 
 import (
+	"dotenvless/internal/application"
 	"dotenvless/internal/config"
 	"dotenvless/internal/crypto"
-	"dotenvless/internal/dotenv"
-	"dotenvless/internal/project"
 	"dotenvless/internal/runner"
 	"dotenvless/internal/vault"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 )
 
-var Version = "0.1.0-dev"
+var Version = "0.2.0-dev"
 
-const help = `Dotenvless - local secrets for Windows
+const help = `Dotenvless - local environment management for Windows
 
-Usage: dvl <command>
+Usage: dvl [--env NAME | --base] <command>
 
 Commands:
-  init         Initialize this Git project
-  set <KEY>    Read a secret from a hidden terminal prompt
-  list         List secret names
-  example      Create a key-only .env.example at the Git root
-  import [--overwrite] <FILE>  Import a dotenv file without deleting it
-  unset <KEY>  Remove a secret
-  status [DIRECTORY]  Inspect the current or specified Git project
-  run -- <COMMAND> [ARG...]  Run a child with project secrets
+  init         Register the Git project or an ordinary directory
+  set <KEY>    Read a value from a hidden terminal prompt
+  list         List effective variable names (no values)
+  example      Create a key-only .env.example at the project root
+  import [--overwrite] <FILE>  Import dotenv without deleting its source
+  unset <KEY>  Remove a binding from the selected layer
+  status [DIRECTORY]  Inspect the current or specified project
+  run -- <COMMAND> [ARG...]  Run with the selected environment
+  migrate      Explicitly upgrade a v1 Vault with an encrypted backup
+
+Selectors:
+  --env NAME   Select an environment (default: local)
+  --base       Edit the base layer; cannot be used with run
+  The desktop client's selected environment never changes CLI defaults.
 
 Options:
   --help, -h   Show help
@@ -52,128 +58,171 @@ func (a app) run(args []string, stdin *os.File, stdout, stderr io.Writer) int {
 			return 0
 		}
 	}
-	valid := len(args) == 1 && (args[0] == "init" || args[0] == "list" || args[0] == "status" || args[0] == "example")
+	invalid := func() int { fmt.Fprintln(stderr, "Invalid arguments. Use dvl --help."); return 2 }
+	scope := "local"
+	selected := false
+	if len(args) > 0 && args[0] == "--base" {
+		scope = "base"
+		args = args[1:]
+		selected = true
+	} else if len(args) > 0 && args[0] == "--env" {
+		if len(args) < 3 || !vault.ValidEnvironment(args[1]) {
+			return invalid()
+		}
+		scope = args[1]
+		args = args[2:]
+		selected = true
+	}
+	valid := len(args) == 1 && (args[0] == "init" || args[0] == "list" || args[0] == "status" || args[0] == "example" || args[0] == "migrate")
 	valid = valid || (len(args) == 2 && (args[0] == "set" || args[0] == "unset"))
 	valid = valid || (len(args) == 2 && args[0] == "status" && args[1] != "" && !strings.HasPrefix(args[1], "-"))
-	valid = valid || (len(args) >= 3 && args[0] == "run" && args[1] == "--")
+	valid = valid || (len(args) >= 3 && args[0] == "run" && args[1] == "--" && scope != "base")
 	importPath, overwrite, validImport := importArguments(args)
 	valid = valid || validImport
 	if !valid {
-		fmt.Fprintln(stderr, "Invalid arguments. Use dvl --help.")
-		return 2
+		return invalid()
 	}
-	fail := func(err error) int { fmt.Fprintln(stderr, err.Error()); return 1 }
-	cwd, err := os.Getwd()
-	if err != nil {
-		fmt.Fprintln(stderr, "Cannot read working directory.")
-		return 1
+	if selected && (args[0] == "init" || args[0] == "migrate") {
+		return invalid()
+	}
+	fail := func(e error) int { fmt.Fprintln(stderr, e.Error()); return 1 }
+	path, e := config.DefaultVaultPath()
+	if e != nil {
+		return fail(e)
+	}
+	service := application.New(path, crypto.DPAPI{})
+	if args[0] == "migrate" {
+		backup, e := service.Store.Migrate()
+		if e != nil {
+			return fail(e)
+		}
+		if backup == "" {
+			fmt.Fprintln(stdout, "Vault already uses v2")
+		} else {
+			fmt.Fprintln(stdout, "Vault upgraded; original encrypted backup retained")
+		}
+		return 0
+	}
+	cwd, e := os.Getwd()
+	if e != nil {
+		return fail(errors.New("cannot read working directory"))
 	}
 	start := cwd
 	if args[0] == "status" && len(args) == 2 {
 		start = args[1]
 	}
-	p, err := project.Discover(start)
-	if err != nil {
-		return fail(err)
-	}
-	if args[0] == "status" {
-		return printStatus(p, stdout, stderr)
-	}
-	path, err := config.VaultPath(p.Root)
-	if err != nil {
-		return fail(err)
-	}
-	s := vault.New(path, crypto.DPAPI{})
-	switch args[0] {
-	case "example":
-		keys, err := s.Keys(p.ID)
-		if err != nil {
-			return fail(err)
+	p, e := service.FindProject(start)
+	if args[0] == "init" {
+		if e == nil {
+			start = p.Root
 		}
-		if err := writeExample(p.Root, keys); err != nil {
-			return fail(err)
-		}
-		fmt.Fprintln(stdout, "Created .env.example")
-		return 0
-	case "import":
-		if _, err := s.Keys(p.ID); err != nil {
-			return fail(err)
-		}
-		file, err := os.Open(importPath)
-		if err != nil {
-			fmt.Fprintln(stderr, "Cannot open dotenv source.")
-			return 1
-		}
-		values, err := dotenv.Parse(file)
-		_ = file.Close()
-		if err != nil {
-			return fail(err)
-		}
-		defer func() {
-			for _, value := range values {
-				clear(value)
-			}
-		}()
-		keys, err := s.Import(p.ID, values, overwrite)
-		if err != nil {
-			return fail(err)
-		}
-		fmt.Fprintf(stdout, "Found %d variables\n", len(keys))
-		for _, key := range keys {
-			fmt.Fprintln(stdout, key+" imported")
-		}
-		return 0
-	case "run":
-		values, err := s.Values(p.ID)
-		if err != nil {
-			return fail(err)
-		}
-		defer clear(values)
-		code, err := runner.Run(args[2:], values, stdin, stdout, stderr)
-		if err != nil {
-			return fail(err)
-		}
-		return code
-	case "init":
-		if err := s.Init(p.ID); err != nil {
-			return fail(err)
+		p, e = service.Register(start, vault.AnyRevision)
+		if e != nil {
+			return fail(e)
 		}
 		fmt.Fprintln(stdout, "Initialized "+p.Name)
-	case "list":
-		keys, err := s.Keys(p.ID)
-		if err != nil {
-			return fail(err)
+		return 0
+	}
+	if e != nil {
+		return fail(e)
+	}
+	// A Git identity may exist before the registry; also validate storage location.
+	if _, e = config.VaultPath(p.Root); e != nil {
+		return fail(e)
+	}
+	if args[0] == "status" {
+		return printStatus(p, service, scope, stdout, stderr)
+	}
+	if args[0] == "set" || args[0] == "unset" || args[0] == "import" {
+		state, e := service.State()
+		if e != nil {
+			return fail(e)
+		}
+		if state.Version == 1 {
+			return fail(vault.ErrMigration)
+		}
+	}
+	switch args[0] {
+	case "list", "example":
+		entries, _, e := service.Entries(p.ID, scope)
+		if e != nil {
+			return fail(e)
+		}
+		keys := []string{}
+		for _, entry := range entries {
+			if entry.Kind != "disabled" {
+				keys = append(keys, entry.Key)
+			}
+		}
+		if args[0] == "example" {
+			if e = service.Example(p.ID, scope, p.Root); e != nil {
+				return fail(e)
+			}
+			fmt.Fprintln(stdout, "Created .env.example")
+			return 0
 		}
 		for _, key := range keys {
 			fmt.Fprintln(stdout, key)
 		}
 	case "set", "unset":
-		key, err := vault.NormalizeKey(args[1])
-		if err != nil {
-			return fail(err)
+		key, e := vault.NormalizeKey(args[1])
+		if e != nil {
+			return fail(e)
 		}
 		if args[0] == "unset" {
-			if err := s.Unset(p.ID, key); err != nil {
-				return fail(err)
+			if e = service.Unset(p.ID, scope, key, vault.AnyRevision); e != nil {
+				return fail(e)
 			}
 			fmt.Fprintln(stdout, "Removed "+key)
 			return 0
 		}
-		if _, err := s.Keys(p.ID); err != nil {
-			return fail(err)
+		if _, _, e = service.Entries(p.ID, scope); e != nil {
+			return fail(e)
 		}
 		fmt.Fprint(stderr, "Secret: ")
-		value, err := a.readSecret(stdin)
+		value, e := a.readSecret(stdin)
 		fmt.Fprintln(stderr)
-		if err != nil {
-			fmt.Fprintln(stderr, "Cannot read secret: cancelled, invalid input, or no interactive terminal.")
-			return 1
+		if e != nil {
+			clear(value)
+			return fail(errors.New("Cannot read secret: cancelled, invalid input, or no interactive terminal."))
 		}
 		defer clear(value)
-		if err := s.Set(p.ID, key, value); err != nil {
-			return fail(err)
+		if e = service.Set(p.ID, scope, key, value, vault.AnyRevision); e != nil {
+			return fail(e)
 		}
 		fmt.Fprintln(stdout, "Saved "+key)
+	case "import":
+		if _, _, e = service.Entries(p.ID, scope); e != nil {
+			return fail(e)
+		}
+		f, e := os.Open(importPath)
+		if e != nil {
+			return fail(errors.New("Cannot open dotenv source."))
+		}
+		preview, e := service.PreviewImport(p.ID, scope, f)
+		_ = f.Close()
+		if e != nil {
+			return fail(e)
+		}
+		defer preview.Close()
+		if e = service.CommitImport(preview, overwrite); e != nil {
+			return fail(e)
+		}
+		fmt.Fprintf(stdout, "Found %d variables\n", len(preview.Keys))
+		for _, key := range preview.Keys {
+			fmt.Fprintln(stdout, key+" imported")
+		}
+	case "run":
+		resolved, e := service.Resolve(p.ID, scope)
+		if e != nil {
+			return fail(e)
+		}
+		defer clear(resolved.Values)
+		code, e := runner.RunWithRemoved(args[2:], resolved.Values, resolved.Removed, stdin, stdout, stderr)
+		if e != nil {
+			return fail(e)
+		}
+		return code
 	}
 	return 0
 }

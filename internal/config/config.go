@@ -41,13 +41,15 @@ func VaultPath(projectRoot string) (string, error) {
 		return "", errors.New("cannot resolve vault directory")
 	}
 	directory = filepath.Join(physical, remaining)
-	root, err := project.CanonicalDir(projectRoot)
-	if err != nil {
-		return "", errors.New("cannot resolve project directory")
-	}
-	rel, err := filepath.Rel(root, directory)
-	if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-		return "", errors.New("vault must be outside the project directory")
+	if projectRoot != "" {
+		root, err := project.CanonicalDir(projectRoot)
+		if err != nil {
+			return "", errors.New("cannot resolve project directory")
+		}
+		rel, err := filepath.Rel(root, directory)
+		if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return "", errors.New("vault must be outside the project directory")
+		}
 	}
 	path := filepath.Join(directory, "vault.dat")
 	info, err := os.Lstat(path)
@@ -59,3 +61,5 @@ func VaultPath(projectRoot string) (string, error) {
 	}
 	return path, nil
 }
+
+func DefaultVaultPath() (string, error) { return VaultPath("") }

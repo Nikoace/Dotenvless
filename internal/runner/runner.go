@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func environment(base []string, secrets map[string]string) []string {
+func environment(base []string, secrets map[string]string, removed ...string) []string {
 	entries := map[string]string{}
 	for _, entry := range base {
 		offset := 0
@@ -27,6 +27,9 @@ func environment(base []string, secrets map[string]string) []string {
 	for _, key := range keys {
 		normalized := strings.ToUpper(key)
 		entries[normalized] = normalized + "=" + secrets[key]
+	}
+	for _, key := range removed {
+		delete(entries, strings.ToUpper(key))
 	}
 	keys = keys[:0]
 	for key := range entries {

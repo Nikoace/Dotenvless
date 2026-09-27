@@ -106,3 +106,17 @@ GitHub [Windows CI](.github/workflows/windows.yml) 执行格式检查、依赖�
 当前暂不添加许可证；未声明采用 MIT、Apache-2.0 或其他开源许可证。
 
 V0.2 内核进度：工程登记、普通目录归属、可取消的 Git 工程发现，以及带显式密文备份的 Vault v2 升级已完成。客户端接入与 CLI 新语法见后续 M11–M12。
+
+### V0.2 环境选择
+
+新版 CLI 默认使用 local；界面浏览的环境不会改变此默认值。先通过客户端创建其他环境，然后使用：
+
+~~~powershell
+dvl --env test run -- go test ./...
+dvl --base set DATABASE_URL
+dvl --env dev set LOG_LEVEL
+dvl --env dev list
+dvl migrate
+~~~
+
+基础配置由环境继承；unset 只删除所选层的绑定，可能恢复基础值。客户端中的“停用”还会排除父终端同名变量。旧 v1 Vault 可只读使用，修改前必须显式 migrate；原密文保存为 vault.dat.v1.bak。备份保留旧 DPAPI 绑定，不是跨机器可移植备份。

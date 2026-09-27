@@ -198,3 +198,11 @@ Refactor / 回归结果:
 - Green: all 3 passed with real isolated DPAPI fake data: ordinary and nested roots, nested Git isolation, migrated hash association, in-project Vault rejection, source-independent discovery, skipped dependencies and cancellation.
 - Full root tests, vet and Windows CLI build passed; formatting and diff checks passed. The desktop shell's prior native build is unaffected by this core-only slice.
 - Legacy Store remains a strict v1 implementation for compatibility fixtures; Manager is the v2 transaction boundary. The CLI switches to the shared application service in M11.
+
+## 2026-09-27 / M11 / ENV-01, SHARE-01, CONC-01
+- Red: 3 layered/shared/copy tests failed against rejecting service stubs. Implemented layer selection before decryption, immutable environment IDs, independent-copy reprotection, explicit references, usage/deletion checks and revision-checked mutations.
+- Green: all 3 passed with isolated DPAPI. Empty values remain present; unset restores base; local/base are protected; scope rename retains ciphertext context; a broken unrelated reference does not prevent single-key reveal but prevents a run.
+- Import Red: TestPreviewImportAtomicConflictCancelAndStale failed against preview stub. Green passed: preview key/conflict metadata, all-or-nothing overwrite, one-use batch, cancellation and stale-revision rejection.
+- CLI Red: TestCentreCLIEnvironmentSelectionAndParentMask failed with exit 2 on the old selector parser; legacy mutation test failed because old CLI allowed the write. After routing through application services, the run test specifically failed with child exit 92 because the initial runner adapter still inherited a disabled parent variable.
+- Green: RunWithRemoved removes disabled keys after environment merging. The same real child test now exits 47, emits no secret/output, and leaves the parent variable unchanged. Legacy list and migration outside a project pass; attempted legacy mutation leaves bytes unchanged and requests migration.
+- Full root go test -count=1 ./..., go vet ./..., formatting and Windows CLI build passed. Existing status decryption verification, imports, examples, batch arguments, cwd and exit-code tests remain passing.

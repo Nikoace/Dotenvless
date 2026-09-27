@@ -13,7 +13,7 @@ import (
 	"unicode"
 )
 
-func Run(args []string, secrets map[string]string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+func RunWithRemoved(args []string, secrets map[string]string, removed []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	if len(args) == 0 || args[0] == "" {
 		return 1, errors.New("command is required")
 	}
@@ -51,7 +51,7 @@ func Run(args []string, secrets map[string]string, stdin io.Reader, stdout, stde
 	} else {
 		cmd = exec.Command(path, args[1:]...)
 	}
-	cmd.Env = environment(os.Environ(), secrets)
+	cmd.Env = environment(os.Environ(), secrets, removed...)
 	defer clear(cmd.Env)
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
@@ -80,4 +80,8 @@ func safeBatch(text string, argument bool) bool {
 		}
 	}
 	return !argument || !strings.HasSuffix(text, `\`)
+}
+
+func Run(args []string, secrets map[string]string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	return RunWithRemoved(args, secrets, nil, stdin, stdout, stderr)
 }
