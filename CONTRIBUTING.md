@@ -1,6 +1,6 @@
 # 贡献说明
 
-当前项目处于 0.1.0-dev 阶段，产品目标是 Windows 上的本地 Git 项目 Secret 管理。先阅读 [AGENTS.md](AGENTS.md)、[设计决策](docs/design.md)和对应[规格](docs/specs/v0.1.md)。许可证尚未指定。
+当前版本为 0.2.0，产品目标是 Windows 本地工程 ENV 管理。先阅读 [AGENTS.md](AGENTS.md)、[设计决策](docs/design.md)和对应[规格](docs/specs/v0.2.md)。许可证尚未指定。
 
 ## 环境
 
@@ -34,3 +34,5 @@ git diff --check
 - 本项目当前不提供 Linux/macOS 产品支持；CI 与平台行为测试使用 Windows。
 
 提交前检查 `git diff --cached`，确保工具链、缓存、可执行文件、Vault 和真实 `.env` 没有进入提交。Git 操作仅限本仓库。
+
+桌面模块位于 desktop，使用 Fyne；先运行 scripts/setup-desktop.ps1 安装独立 C 编译器。两个模块各自执行 vet/test/build。完整本地发布验收可用 scripts/package.ps1；它启用真实 CLI 端到端测试并收集依赖许可证。

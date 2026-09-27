@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-var Version = "0.2.0-dev"
+var Version = "0.2.0"
 
 const help = `Dotenvless - local environment management for Windows
 

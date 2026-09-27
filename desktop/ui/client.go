@@ -193,6 +193,9 @@ func (c *Client) build() {
 			}
 		})
 	c.sharedList.OnSelected = func(i widget.ListItemID) {
+		if c.updating {
+			return
+		}
 		if i >= len(c.view.Shared) {
 			return
 		}
@@ -214,6 +217,7 @@ func (c *Client) build() {
 	sharedSplit.Offset = .45
 	sharedPage := container.NewBorder(widget.NewButton("新增共享条目", func() {
 		c.HideSecrets()
+		c.sharedList.UnselectAll()
 		c.sharedID = ""
 		c.sharedName.SetText("")
 		c.sharedValue.SetText("")
@@ -292,7 +296,17 @@ func (c *Client) filterProjects() {
 			c.visible = append(c.visible, p)
 		}
 	}
+	wasUpdating := c.updating
+	c.updating = true
+	defer func() { c.updating = wasUpdating }()
+	c.projects.UnselectAll()
 	c.projects.Refresh()
+	for i, p := range c.visible {
+		if p.ID == c.selected {
+			c.projects.Select(i)
+			break
+		}
+	}
 }
 func (c *Client) Refresh() error {
 	c.HideSecrets()
@@ -313,8 +327,16 @@ func (c *Client) Refresh() error {
 		c.migration.Show()
 	}
 	c.filterProjects()
+	c.table.UnselectAll()
 	c.table.Refresh()
+	c.sharedList.UnselectAll()
 	c.sharedList.Refresh()
+	for i, item := range view.Shared {
+		if item.ID == c.sharedID {
+			c.sharedList.Select(i)
+			break
+		}
+	}
 	if c.sharedID != "" {
 		found := false
 		for _, item := range view.Shared {
@@ -326,6 +348,7 @@ func (c *Client) Refresh() error {
 			}
 		}
 		if !found {
+			c.sharedList.UnselectAll()
 			c.sharedID = ""
 			c.sharedName.SetText("")
 			c.sharedUses.SetText("共享条目已移除。")
@@ -555,6 +578,7 @@ func (c *Client) deleteShared() {
 	c.confirm("删除共享条目", "仅无引用的条目可以删除。", func() {
 		e := c.Service.DeleteShared(id, rev)
 		if e == nil {
+			c.sharedList.UnselectAll()
 			c.sharedID = ""
 			c.sharedName.SetText("")
 		}

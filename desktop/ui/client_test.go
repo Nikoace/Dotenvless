@@ -141,3 +141,35 @@ func TestSharedRefreshAndSecretControls(t *testing.T) {
 		t.Fatal("editor exposes unrestricted password eye")
 	}
 }
+
+func TestFilteredProjectSelectionUsesVisibleIdentity(t *testing.T) {
+	a := test.NewApp()
+	defer a.Quit()
+	w := a.NewWindow("test")
+	defer w.Close()
+	s := application.New(filepath.Join(t.TempDir(), "vault.dat"), crypto.DPAPI{})
+	p, e := s.Register(t.TempDir(), 0)
+	if e != nil {
+		t.Fatal(e)
+	}
+	q, e := s.Register(t.TempDir(), vault.AnyRevision)
+	if e != nil {
+		t.Fatal(e)
+	}
+	c := NewClient(s, w, fakeClip{})
+	defer c.Close()
+	for i, item := range c.visible {
+		if item.ID == p.ID {
+			c.projects.Select(i)
+			break
+		}
+	}
+	c.search.SetText(q.Root)
+	if len(c.visible) != 1 {
+		t.Fatal("search did not filter directory")
+	}
+	c.projects.Select(0)
+	if c.selected != q.ID {
+		t.Fatal("filtered row retained previous project selection")
+	}
+}

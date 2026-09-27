@@ -1,128 +1,114 @@
 # Dotenvless
 
-V0.2 开发中：新增独立 Fyne 桌面模块，规格见 [ENV 管理中心](docs/specs/v0.2.md)。CLI 构建方式不变；桌面开发命令为 `scripts/desktop.ps1`，需要 C 编译器。
+Windows 上的本地工程 ENV 管理中心。用中文桌面客户端管理配置，通过 CLI 把所选环境注入子进程。值由当前 Windows 用户的 DPAPI 加密，集中保存在工程目录之外。
 
-Windows-first 本地 Secret 管理 CLI。把项目 Secret 存入项目目录之外的 Windows DPAPI 加密 Vault，在启动程序时通过环境变量注入。
+当前版本：**0.2.0**，Windows x64。支持 Git 工程、独立 worktree 和普通目录；无运行时网络、遥测、常驻服务或应用主密码。关闭窗口即退出。实际验证范围与未执行的人工验收见[验证记录](docs/verification.md)。
 
-当前版本：**0.1.0-dev**。支持 Windows 10/11，当前自动测试与构建目标为 Windows x64。尚未完成的独立系统和跨账户验收见[验证记录](docs/verification.md)，远程 CI 状态见 [GitHub Actions](https://github.com/Nikoace/Dotenvless/actions)。
+## 开始使用
 
-## 构建
+解压 Windows 发布包，运行 `dvl-desktop.exe`。使用 CLI 时可直接调用 `dvl.exe` 的绝对路径，或自行将其所在目录加入 PATH。
 
-需要 [Go](https://go.dev/dl/) 1.26 或更新版本，以及 [Git for Windows](https://git-scm.com/downloads/win)。Go 版本要求以 [go.mod](go.mod) 为准；已在本机使用 Go 1.27.1 验证。运行构建后的 CLI 不需要安装 Go。
-
-克隆仓库后，在仓库根目录执行：
-
-```powershell
-go mod download
-go build -trimpath -o bin/dvl.exe ./cmd/dvl
-.\bin\dvl.exe --help
-```
-
-以下示例假设 `dvl.exe` 所在目录已经加入 PATH；也可使用可执行文件的完整路径。首次下载 Go 依赖需要网络，CLI 自身运行时不访问网络。
-
-## 使用
-
-进入要管理的 Git 项目：
-
-```powershell
-dvl init
-dvl set OPENAI_API_KEY
-dvl set DATABASE_URL
-dvl list
-dvl run -- python app.py
-dvl run -- npm run dev
-dvl run -- ./gradlew bootRun
-```
-
-`set` 从 Windows 交互终端隐藏读取输入；Enter 保存，Backspace 删除字符，Ctrl+C 取消。变量名规范为大写，允许空值，值须为无 NUL 的 UTF-8 文本且不超过 32 KiB。不接受 `set KEY VALUE` 或重定向 stdin。
-
-| 命令 | 行为 |
-| --- | --- |
-| `dvl init` | 幂等注册当前 Git 项目 |
-| `dvl set KEY` | 隐藏输入并保存/覆盖该键 |
-| `dvl list` | 仅输出排序键名 |
-| `dvl unset KEY` | 删除该键；不存在时报错 |
-| `dvl run -- COMMAND [ARG...]` | 注入当前项目 Secret，继承工作目录/标准流并透传退出码 |
-| `dvl import FILE` | 整批导入；同名键冲突则全部拒绝，保留源文件 |
-| `dvl import --overwrite FILE` | 显式允许覆盖已有键 |
-| `dvl example` | 在 Git 根创建只含 `KEY=` 的 `.env.example`；拒绝覆盖 |
-| `dvl status [DIRECTORY]` | 查看当前或指定目录所属项目的身份、键名、Vault 与 Git 状态 |
-| `dvl --help` / `dvl --version` | 查看帮助/版本，无需位于 Git 项目 |
-
-`status` 支持相对路径和项目子目录，也可从非 Git 目录查询；含空格路径用引号包裹：
-
-```powershell
-dvl status
-dvl status "..\my app"
-dvl status ..\my-app\src
-```
-
-### 从已有 .env 迁移
-
-```powershell
-dvl init
-dvl import .env
-dvl list
-dvl run -- npm run dev
-```
-
-导入不会删除 `.env`；确认应用通过环境变量正常工作后，由你决定是否移除原文件。真实环境文件仍应被 Git 忽略；如果曾提交真实凭据，迁移不会清除 Git 历史或撤销凭据。
-
-导入支持 UTF-8/BOM、LF/CRLF、注释、`export`、单/双引号和多行值；不展开变量、不执行命令，源文件上限 1 MiB。详见[导入语法](docs/specs/m6-import.md)。
-
-### Windows 命令兼容
-
-普通可执行文件直接启动；`.cmd/.bat` 自动通过系统 `cmd.exe` 执行，`./gradlew` 优先使用相邻 `gradlew.bat`。批处理参数中的引号、`% ! ^ & | < >`、控制字符和末尾反斜杠会被明确拒绝；需要 shell 语法时显式选择 shell。详见[参数契约](docs/specs/m5-run.md)。
-
-## 存储与安全范围
-
-- 默认 Vault：`%APPDATA%\dotenvless\vault.dat`，必须位于当前项目之外。每个值使用 DPAPI Current User 加密，并绑定项目 ID 与键名；写入采用进程锁和密文原子替换。
-- 项目 ID 来自规范化物理 Git 根路径的 SHA-256。子目录与目录联接共享身份；不同 worktree 隔离。移动或重命名项目后需要重新导入。
-- `list/status/example` 和 CLI 自身错误信息不显示 Secret 值，没有明文 `get` 命令。不创建临时明文 `.env`，不修改持久环境，无遥测、daemon 或运行时联网。
-- Secret 会存在于 CLI 和子进程内存；子进程及其后代可以主动输出或发送它。DPAPI 不能隔离同一 Windows 身份下的其他程序，本工具不是 Agent sandbox。
-- `status` 只检查声明范围内的 `.env` 文件名和 Git 状态，不检查文件内容，也不证明工作区不存在其他凭据。[检查范围](docs/specs/m8-status.md)
-- APPDATA 可能受系统漫游或重定向设置影响。安全问题报告方式见 [SECURITY.md](SECURITY.md)。
-
-## 开发与验证
-
-```powershell
-go vet ./...
-go test -count=1 ./...
-go build -trimpath -o bin/dvl.exe ./cmd/dvl
-```
-
-可选的 `scripts/dev.ps1` 优先使用 `.tools/go` 下的本地工具链，否则使用 PATH 中的 Go，并将 Go 缓存放入忽略的 `.cache` 目录；它不下载工具链。
-
-GitHub [Windows CI](.github/workflows/windows.yml) 执行格式检查、依赖校验、vet、测试和构建，成功时提供 `dvl-windows-amd64` 构建产物。交互终端、第二 Windows 账户和可选 Gradle 验收需[单独执行](docs/manual-verification.md)；远程 CI 的结果以推送后实际运行为准。
-
-采用 SDD/TDD：先定义行为与验收，再执行失败测试、实现和回归，记录真实证据后提交。
-
-- [贡献说明](CONTRIBUTING.md) · [变更日志](CHANGELOG.md)
-- [V0.1 规格](docs/specs/v0.1.md) · [设计决策](docs/design.md) · [推进计划](docs/plan.md)
-- [验证记录](docs/verification.md) · [首次推送指南](docs/publishing.md)
-
-## 许可证
-
-当前暂不添加许可证；未声明采用 MIT、Apache-2.0 或其他开源许可证。
-
-V0.2 内核进度：工程登记、普通目录归属、可取消的 Git 工程发现，以及带显式密文备份的 Vault v2 升级已完成。客户端接入与 CLI 新语法见后续 M11–M12。
-
-### V0.2 环境选择
-
-新版 CLI 默认使用 local；界面浏览的环境不会改变此默认值。先通过客户端创建其他环境，然后使用：
+1. 在客户端点击「添加目录」，或「批量发现」后勾选 Git 工程。新工程包含基础配置和 `local`。
+2. 在基础配置中填写共用变量，在 `local` 或新建的 `dev/test` 环境中填写覆盖值。保存空输入表示空字符串。
+3. 在工程目录或其子目录中启动：
 
 ~~~powershell
+dvl run -- npm run dev
 dvl --env test run -- go test ./...
+~~~
+
+不指定环境始终使用 `local`；客户端正在浏览的环境不影响终端。普通目录需先明确登记，子目录归属最近的已登记根；嵌套 Git 根独立隔离。工程移动或重命名后视为新工程，旧配置保留为目录不可用记录。
+
+## 客户端
+
+- 左侧按工程名称或路径搜索，显示环境数量、配置状态和目录可用性。批量发现可取消，跳过目录链接、依赖和构建目录，不读取 dotenv 正文。
+- 中间查看有效变量的来源、继承、共享引用和停用状态；右侧新增、替换、删除本层绑定或在当前环境停用。环境可创建、复制、重命名、删除，基础配置与 `local` 保留。
+- 共享库通过稳定 ID 显式引用，支持不同工程使用不同变量名。更新前显示引用范围，下次启动生效；被引用条目不能直接删除。「保存独立值」只修改当前工程层。
+- 导入先预览键名和冲突。冲突默认整批拒绝，勾选覆盖后才允许更新；取消不写入，原文件保留。
+- 变量默认遮蔽；单条查看 15 秒后隐藏，切换工程、配置层、页面或失去焦点时隐藏。复制使用 Windows 后端排除剪贴板历史/云同步，30 秒后或正常退出时仅清理仍属于本次复制的内容。
+- 配置被其他 CLI/客户端修改后，旧表单提交会要求刷新。编辑器中的值在保存、刷新或切换工程后清空。
+- 「状态与接入」检查工作区并复制不含值的启动命令；可生成仅含键名的 `.env.example`，不会覆盖已有文件。
+
+删除工程记录只删除 Vault 中的该工程配置，不删除工程文件或共享条目。客户端不提供启动器、明文导出、云同步或跨机器密钥迁移。
+
+## CLI
+
+~~~powershell
+dvl init
+dvl set API_KEY
 dvl --base set DATABASE_URL
 dvl --env dev set LOG_LEVEL
 dvl --env dev list
+dvl --env dev unset LOG_LEVEL
+dvl --env dev import .env
+dvl --env dev import --overwrite .env
+dvl --env dev status
+dvl --env dev status ./another-project
+dvl --env dev example
+dvl --env dev run -- npm run dev
 dvl migrate
 ~~~
 
-基础配置由环境继承；unset 只删除所选层的绑定，可能恢复基础值。客户端中的“停用”还会排除父终端同名变量。旧 v1 Vault 可只读使用，修改前必须显式 migrate；原密文保存为 vault.dat.v1.bak。备份保留旧 DPAPI 绑定，不是跨机器可移植备份。
+`set` 从交互终端隐藏读取值，不能把值作为命令参数提供。没有明文 `get`。
 
-### V0.2 客户端
+`--base` 与 `--env` 互斥，放在子命令之前；基础配置不能直接用于 `run`。`list/status/example` 使用所选层或环境的有效键名；`set/import` 写入所选层。`unset` 只删除本层绑定，删除覆盖后恢复基础继承。停用由客户端操作，启动时连父终端的同名变量也会移除。
 
-运行 bin/dvl-desktop.exe 可管理工程、基础配置、环境覆盖、共享引用和导入预览。值默认遮蔽，查看 15 秒后隐藏，失去焦点/切换工程时隐藏；复制通过 Windows 隐私剪贴板，30 秒后或退出时仅清理仍属于本次复制的内容。界面冲突提示后先刷新，再重新输入。
+最终子进程环境：继承父终端 → 基础配置 → 环境覆盖 → 删除停用键。先确定最终绑定，再解密所需值；引用缺失或解密失败时不启动。父终端和已运行进程的环境不变。
 
-桌面模块独立构建：先运行 scripts/setup-desktop.ps1 安装已固定并校验摘要的本地 C 编译器，再用 scripts/desktop.ps1 build -trimpath -ldflags '-H=windowsgui' -o ../bin/dvl-desktop.exe . 构建。CLI 继续纯 Go 构建。详细验收与未验证项见 docs/verification.md。
+导入支持 UTF-8/BOM、LF/CRLF、注释、`export`、单/双引号及多行值；不展开变量、不执行命令，文件上限 1 MiB，单值上限 32 KiB。[导入语法](docs/specs/m6-import.md)
+
+普通可执行文件直接启动；`.cmd/.bat` 通过系统 `cmd.exe` 执行，`./gradlew` 优先使用相邻 `gradlew.bat`。无法可靠传递的批处理特殊参数会被拒绝。[参数契约](docs/specs/m5-run.md)
+
+## Vault 升级与安全范围
+
+默认位置：`%APPDATA%\dotenvless\vault.dat`，必须位于所有已登记工程目录之外。普通配置和密钥统一加密；根路径、键名、环境名等是元数据。跨进程锁、版本检查和密文原子替换保护并发修改。
+
+v1 Vault 可以由新 CLI 只读使用，修改前执行 `dvl migrate` 或客户端升级入口。升级先保留原始密文 `vault.dat.v1.bak`，再在内存中重新加密并一次提交；失败保留原文件。旧变量迁入各工程 `local`，基础为空。旧记录没有工程路径，添加原目录后按路径哈希关联。升级后旧 CLI 会拒绝 v2，不能继续修改。
+
+备份仍绑定原 Windows 用户/DPAPI 条件，不是跨机器可移植备份。不要手动用旧备份覆盖已经更新的 v2 Vault。备份与当前原文件不一致时，迁移拒绝覆盖备份。
+
+项目身份为规范化物理根路径的 SHA-256，worktree 隔离。密文上下文绑定工程、配置层及键名，或共享条目 ID。DPAPI 不防御同一 Windows 身份下的恶意程序、管理员、内存转储或目标子进程主动泄露。剪贴板排除标记也不能阻止其他程序主动读取当前剪贴板；异常终止可能来不及执行定时清理。
+
+`status` 仅检查声明范围内的 dotenv 文件名和 Git 状态，不读取正文，也不证明工作区没有其他凭据。导入不会清理 Git 历史或撤销曾泄露的凭据。[检查范围](docs/specs/m8-status.md) · [安全说明](SECURITY.md)
+
+## 构建与验证
+
+需要满足 `go.mod` 的 Go。CLI 保持纯 Go：
+
+~~~powershell
+$env:CGO_ENABLED='0'
+go vet ./...
+go test -count=1 ./...
+go build -trimpath -o bin/dvl.exe ./cmd/dvl
+~~~
+
+桌面是独立模块，Fyne 需要 C 编译器：
+
+~~~powershell
+.\scripts\setup-desktop.ps1
+.\scripts\desktop.ps1 vet -tags ci ./...
+.\scripts\desktop.ps1 test -tags ci -count=1 ./...
+$env:CGO_ENABLED='1'
+.\scripts\desktop.ps1 build -trimpath -ldflags '-H=windowsgui' -o ../bin/dvl-desktop.exe .
+~~~
+
+安装脚本仅下载固定版本且校验 SHA-256 的 LLVM-MinGW 到忽略的 `.tools`。开发脚本优先使用 `.tools/go` 中的 Go，否则使用 PATH，缓存写入 `.cache`；不修改系统持久设置。首次获取编译器与依赖需要开发时联网，应用运行无需联网。
+
+完整交付检查及打包：
+
+~~~powershell
+.\scripts\package.ps1
+~~~
+
+脚本执行两个模块的格式、依赖、vet、测试、CLI/桌面 Windows 构建，并启用真实 CLI 端到端测试；输出 `dist/dotenvless-0.2.0-windows-amd64.zip`、SHA-256 文件、包内二进制清单与依赖许可证。应用未做代码签名。
+
+单独运行端到端测试：将进程变量 `DVL_E2E_CLI` 设为已构建 `dvl.exe` 的绝对路径，再运行桌面测试。测试使用临时 Vault 和生成的假值，禁止读取真实凭据。
+
+[Windows CI](.github/workflows/windows.yml) 分开验证纯 Go CLI 与 Fyne 桌面构建。远程结果以推送后实际运行为准。中文 IME、多 DPI、焦点和真实剪贴板、独立 Windows 10/11 及跨账户验收不能由无界面测试代替，见[人工验收](docs/manual-verification.md)。
+
+- [v0.2 规格](docs/specs/v0.2.md) · [设计决策](docs/design.md) · [推进计划](docs/plan.md)
+- [验证记录](docs/verification.md) · [变更日志](CHANGELOG.md) · [贡献说明](CONTRIBUTING.md)
+
+## 许可证
+
+Dotenvless 源码暂未声明许可证。发布包中的第三方依赖遵循各自许可证，详见包内 `THIRD_PARTY_NOTICES.txt`。

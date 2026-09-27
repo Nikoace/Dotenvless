@@ -31,18 +31,25 @@ func (s *Service) State() (*vault.Snapshot, error) {
 	if e != nil {
 		return nil, e
 	}
-	for id, p := range state.Projects {
-		if p.Root != "" {
-			sum := sha256.Sum256([]byte(p.Root))
-			if hex.EncodeToString(sum[:]) != id {
-				return nil, vault.ErrCorrupt
-			}
-			if e = s.outside(p.Root); e != nil {
-				return nil, e
-			}
-		}
+	if e = s.validateState(state); e != nil {
+		return nil, e
 	}
 	return state, nil
+}
+func (s *Service) validateState(state *vault.Snapshot) error {
+	for id, p := range state.Projects {
+		if p.Root == "" {
+			continue
+		}
+		sum := sha256.Sum256([]byte(p.Root))
+		if hex.EncodeToString(sum[:]) != id {
+			return vault.ErrCorrupt
+		}
+		if e := s.outside(p.Root); e != nil {
+			return e
+		}
+	}
+	return nil
 }
 func directoryIdentity(dir string) (project.Identity, error) {
 	absolute, e := filepath.Abs(dir)
@@ -123,14 +130,7 @@ func (s *Service) Register(dir string, revision uint64) (project.Identity, error
 	if e = s.outside(identity.Root); e != nil {
 		return project.Identity{}, e
 	}
-	e = s.Store.Update(revision, func(state *vault.Snapshot) error {
-		for _, p := range state.Projects {
-			if p.Root != "" {
-				if e := s.outside(p.Root); e != nil {
-					return e
-				}
-			}
-		}
+	e = s.update(revision, func(state *vault.Snapshot) error {
 		p, ok := state.Projects[identity.ID]
 		if !ok {
 			id, e := vault.NewID()
@@ -182,7 +182,7 @@ func (s *Service) FindProject(start string) (project.Identity, error) {
 	return found, nil
 }
 func (s *Service) RemoveProject(id string, revision uint64) error {
-	return s.Store.Update(revision, func(state *vault.Snapshot) error {
+	return s.update(revision, func(state *vault.Snapshot) error {
 		if _, ok := state.Projects[id]; !ok {
 			return vault.ErrNotInitialized
 		}

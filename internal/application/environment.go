@@ -21,12 +21,8 @@ type selected struct {
 
 func (s *Service) update(revision uint64, f func(*vault.Snapshot) error) error {
 	return s.Store.Update(revision, func(state *vault.Snapshot) error {
-		for _, p := range state.Projects {
-			if p.Root != "" {
-				if e := s.outside(p.Root); e != nil {
-					return e
-				}
-			}
+		if e := s.validateState(state); e != nil {
+			return e
 		}
 		return f(state)
 	})

@@ -62,3 +62,32 @@ jobs:
           path: bin/dvl.exe
           if-no-files-found: error
           retention-days: 14
+
+  desktop:
+    name: Windows Fyne desktop and release package
+    runs-on: windows-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: desktop/go.mod
+          cache: false
+      - name: Install pinned desktop C compiler
+        run: ./scripts/setup-desktop.ps1
+      - name: Verify both modules and build release package
+        run: ./scripts/package.ps1
+      - name: Upload Windows package and checksum
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: dotenvless-windows-amd64
+          path: |
+            dist/dotenvless-0.2.0-windows-amd64.zip
+            dist/dotenvless-0.2.0-windows-amd64.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
